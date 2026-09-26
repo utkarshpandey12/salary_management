@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Reimbursements — ACME Pay{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">{% if is_hr %}Reimbursement Queue{% else %}My Reimbursements{% endif %}</h1>
+        <p class="text-sm text-slate-500">{% if is_hr %}Approve or reject pending requests — receipts via MinIO/filesystem{% else %}Submit bill/receipt and track status{% endif %}</p>
+    </div>
+    <a href="{% url 'reimbursement-create' %}" class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-4 py-2"><i class="fa-solid fa-plus mr-2"></i> New request</a>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+    <form method="get" hx-get="{% url 'reimbursement-list' %}" hx-target="#reimb-table" hx-swap="innerHTML" hx-trigger="submit, change from:#status" class="flex flex-col sm:flex-row gap-3">
+        <div class="flex-1">
+            <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Search title..." class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <select id="status" name="status" class="border rounded-lg px-3 py-2 text-sm">
+            <option value="">All statuses</option>
+            <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>Pending</option>
+            <option value="APPROVED" {% if status == 'APPROVED' %}selected{% endif %}>Approved</option>
+            <option value="REJECTED" {% if status == 'REJECTED' %}selected{% endif %}>Rejected</option>
+        </select>
+        <button type="submit" class="bg-slate-900 text-white text-sm rounded-lg px-4 py-2">Filter</button>
+        <a href="{% url 'reimbursement-list' %}" class="px-3 py-2 text-sm text-slate-600">Clear</a>
+    </form>
+</div>
+
+<div id="reimb-table">
+    {% include "reimbursements/partials/reimbursement_table.html" %}
+</div>
+{% endblock %}

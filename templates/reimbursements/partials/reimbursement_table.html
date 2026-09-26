@@ -1,0 +1,24 @@
+{% load humanize %}
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 uppercase"><tr><th class="text-left px-4 py-3">Request</th><th class="text-left px-4 py-3">Employee</th><th class="text-right px-4 py-3">Amount</th><th class="text-left px-4 py-3">Date</th><th class="text-left px-4 py-3">Status</th><th class="text-right px-4 py-3"></th></tr></thead>
+            <tbody class="divide-y divide-slate-100" id="reimb-tbody">
+                {% for r in reimbursements %}
+                {% include "reimbursements/partials/reimbursement_row.html" with r=r is_hr=is_hr %}
+                {% empty %}
+                <tr><td colspan="6" class="px-4 py-12 text-center text-slate-500">No reimbursements yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if is_paginated %}
+    <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-between text-sm">
+        <span class="text-slate-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status }}" class="px-3 py-1.5 bg-white border rounded-lg" hx-get="?page={{ page_obj.previous_page_number }}&status={{ status }}" hx-target="#reimb-table" hx-swap="innerHTML">← Prev</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status }}" class="px-3 py-1.5 bg-white border rounded-lg" hx-get="?page={{ page_obj.next_page_number }}&status={{ status }}" hx-target="#reimb-table" hx-swap="innerHTML">Next →</a>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>

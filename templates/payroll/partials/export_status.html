@@ -1,0 +1,14 @@
+<div class="border rounded-xl p-4 {% if export.status == 'COMPLETED' %}bg-green-50 border-green-200{% elif export.status == 'FAILED' %}bg-red-50 border-red-200{% elif export.status == 'PROCESSING' %}bg-amber-50 border-amber-200{% else %}bg-slate-50 border-slate-200{% endif %}">
+    <div class="flex items-center justify-between">
+        <div class="text-sm font-medium">Export #{{ export.id }} — {{ export.month|date:"Y-m" }} {{ export.format }}</div>
+        <span class="text-xs px-2.5 py-1 rounded-full bg-white border font-medium">{{ export.get_status_display }}</span>
+    </div>
+    {% if export.status == 'PROCESSING' %}
+    <div class="mt-2 text-xs text-amber-800">Processing… <i class="fa-solid fa-spinner fa-spin ml-1"></i></div>
+    <div hx-get="{% url 'payroll-export-status' export.pk %}" hx-trigger="every 2s" hx-swap="outerHTML"></div>
+    {% elif export.status == 'COMPLETED' and export.file %}
+    <a href="{% url 'payroll-export-download' export.pk %}" class="mt-3 inline-flex text-sm bg-indigo-600 text-white rounded-lg px-4 py-2 hover:bg-indigo-700"><i class="fa-solid fa-download mr-2"></i> Download {{ export.format }}</a>
+    {% elif export.status == 'FAILED' %}
+    <div class="mt-2 text-xs text-red-700 whitespace-pre-wrap">{{ export.error|truncatechars:500 }}</div>
+    {% endif %}
+</div>

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Edit Salary — {{ employee.full_name }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <a href="{% url 'employee-detail' employee.employee_id %}" class="text-sm text-slate-600 hover:text-slate-900"><i class="fa-solid fa-arrow-left mr-2"></i> Back to {{ employee.full_name }}</a>
+    <h1 class="text-2xl font-bold text-slate-900 mt-2">Edit Salary — {{ employee.employee_id }}</h1>
+    <p class="text-sm text-slate-500 mb-6">All components in monthly amounts. Tax recomputed via brackets for {{ employee.country }}.</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <form method="post" class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg p-3">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {% for field in form %}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<div class="text-xs text-red-600 mt-1">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-6 py-2.5">Save salary</button>
+                <a href="{% url 'employee-detail' employee.employee_id %}" class="bg-white border text-sm rounded-lg px-6 py-2.5">Cancel</a>
+            </div>
+        </form>
+        <div class="bg-slate-900 rounded-xl p-5 text-white">
+            <h3 class="font-semibold text-sm mb-3">Current computed</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-slate-400">Gross</span><span class="font-medium">₹ {{ object.gross_salary|intcomma }}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Tax</span><span class="text-red-300">- ₹ {{ object.tax_deduction|intcomma }}</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">PF + Prof</span><span class="text-red-300">- ₹ {{ object.pf_deduction|add:object.professional_tax|intcomma }}</span></div>
+                <div class="border-t border-slate-700 pt-2 flex justify-between font-bold text-green-400"><span>In-Hand</span><span>₹ {{ object.net_in_hand|intcomma }}</span></div>
+            </div>
+            <div class="mt-4 text-xs text-slate-400">Changes save atomically and payroll export recomputes live.</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
