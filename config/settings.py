@@ -113,6 +113,7 @@ CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:63
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_ALWAYS_EAGER", "1") == "1"
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_ROUTES = {"apps.payroll.tasks.generate_payroll_export": {"queue": "payroll"}}
 
 # Storage — MinIO via django-storages if env set, else filesystem
 USE_MINIO = os.getenv("USE_MINIO", "0") == "1"
