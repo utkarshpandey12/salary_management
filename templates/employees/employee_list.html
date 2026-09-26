@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Employees — ACME Pay{% endblock %}
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Employees</h1>
+        <p class="text-sm text-slate-500">Search by ID, name, job title or email — HTMX live search</p>
+    </div>
+    {% if request.user.is_hr %}
+    <a href="{% url 'employee-create' %}" class="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg px-4 py-2"><i class="fa-solid fa-plus mr-2"></i> New Employee</a>
+    {% endif %}
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+    <form method="get" hx-get="{% url 'employee-list' %}" hx-target="#employee-table" hx-swap="innerHTML" hx-trigger="submit, keyup changed delay:400ms from:#q, change from:#department,#country,#job_title,#status" hx-indicator="#search-spinner" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+        <div class="md:col-span-2">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-sm"></i>
+                <input id="q" type="text" name="q" value="{{ q }}" placeholder="ACME-00001 or name..." class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Department</label>
+            <select id="department" name="department" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">All</option>
+                {% for d in departments %}
+                <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Country</label>
+            <select id="country" name="country" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">All</option>
+                {% for c in countries %}
+                <option value="{{ c }}" {% if selected_country == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Job Title</label>
+            <select id="job_title" name="job_title" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">All</option>
+                {% for j in job_titles %}
+                <option value="{{ j }}" {% if selected_title == j %}selected{% endif %}>{{ j }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="flex-1 bg-slate-900 text-white text-sm rounded-lg px-4 py-2 hover:bg-slate-800">Filter <i id="search-spinner" class="htmx-indicator fa-solid fa-spinner fa-spin ml-2"></i></button>
+            <a href="{% url 'employee-list' %}" class="px-3 py-2 text-sm text-slate-600 hover:text-slate-900">Clear</a>
+        </div>
+    </form>
+</div>
+
+<div id="employee-table">
+    {% include "employees/partials/employee_table.html" %}
+</div>
+{% endblock %}

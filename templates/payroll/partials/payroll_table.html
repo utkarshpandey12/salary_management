@@ -1,0 +1,32 @@
+{% load humanize %}
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+                <tr><th class="text-left px-4 py-3">empID</th><th class="text-left px-4 py-3">Name</th><th class="text-right px-4 py-3">Salary Amount</th><th class="text-right px-4 py-3">Reimbursement</th><th class="text-right px-4 py-3">Total Amount</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for r in rows %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-2 font-mono text-xs"><a href="{% url 'employee-detail' r.empID %}" class="text-indigo-600 hover:underline">{{ r.empID }}</a></td>
+                    <td class="px-4 py-2">{{ r.full_name }}</td>
+                    <td class="px-4 py-2 text-right">₹ {{ r.salary_amount|intcomma }}</td>
+                    <td class="px-4 py-2 text-right">{% if r.reimbursement_amount > 0 %}<span class="text-green-700 font-medium">₹ {{ r.reimbursement_amount|intcomma }}</span>{% else %}<span class="text-slate-400">—</span>{% endif %}</td>
+                    <td class="px-4 py-2 text-right font-bold">₹ {{ r.total_amount|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="px-4 py-12 text-center text-slate-500">No payroll rows.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-between text-sm">
+        <span class="text-slate-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} • {{ count }} employees</span>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}<a href="?month={{ month_str }}&page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 bg-white border rounded-lg">← Prev</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?month={{ month_str }}&page={{ page_obj.next_page_number }}" class="px-3 py-1.5 bg-white border rounded-lg">Next →</a>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>

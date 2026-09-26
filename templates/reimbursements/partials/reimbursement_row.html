@@ -1,0 +1,24 @@
+<tr class="hover:bg-slate-50" id="reimb-{{ r.id }}">
+    <td class="px-4 py-3">
+        <a href="{% url 'reimbursement-detail' r.pk %}" class="font-medium text-indigo-600 hover:underline">{{ r.title }}</a>
+        <div class="text-xs text-slate-500 truncate max-w-xs">{{ r.purpose|truncatechars:80 }}</div>
+        {% if r.receipt %}<a href="{{ r.receipt.url }}" target="_blank" class="text-xs text-indigo-600 hover:underline"><i class="fa-solid fa-paperclip mr-1"></i> Receipt</a>{% endif %}
+    </td>
+    <td class="px-4 py-3"><div class="font-medium">{{ r.employee.full_name }}</div><div class="text-xs text-slate-500">{{ r.employee.employee_id }}</div></td>
+    <td class="px-4 py-3 text-right font-medium">₹ {{ r.amount|intcomma }}</td>
+    <td class="px-4 py-3 text-xs">{{ r.expense_date }} <div class="text-slate-500">{{ r.created_at|date:"Y-m-d" }}</div></td>
+    <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full font-medium {% if r.status == 'APPROVED' %}bg-green-50 text-green-700 border border-green-200{% elif r.status == 'PENDING' %}bg-amber-50 text-amber-700 border border-amber-200{% else %}bg-red-50 text-red-700 border border-red-200{% endif %}">{{ r.get_status_display }}</span></td>
+    <td class="px-4 py-3 text-right">
+        <a href="{% url 'reimbursement-detail' r.pk %}" class="text-xs bg-white border rounded-lg px-3 py-1.5 hover:bg-slate-50">View</a>
+        {% if is_hr and r.status == 'PENDING' %}
+        <span class="inline-flex gap-1 ml-1">
+            <form method="post" action="{% url 'reimbursement-action' r.pk %}" hx-post="{% url 'reimbursement-action' r.pk %}" hx-target="#reimb-{{ r.id }}" hx-swap="outerHTML" class="inline">
+                {% csrf_token %}<input type="hidden" name="action" value="approve"><button type="submit" class="text-xs bg-green-600 text-white rounded-lg px-2.5 py-1.5 hover:bg-green-700">Approve</button>
+            </form>
+            <form method="post" action="{% url 'reimbursement-action' r.pk %}" hx-post="{% url 'reimbursement-action' r.pk %}" hx-target="#reimb-{{ r.id }}" hx-swap="outerHTML" class="inline">
+                {% csrf_token %}<input type="hidden" name="action" value="reject"><button type="submit" class="text-xs bg-white border text-red-600 rounded-lg px-2.5 py-1.5 hover:bg-red-50">Reject</button>
+            </form>
+        </span>
+        {% endif %}
+    </td>
+</tr>
