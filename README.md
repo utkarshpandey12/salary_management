@@ -1,9 +1,9 @@
 # ACME Pay — Salary Management for 10,000 Employees
 
-[![CI](https://github.com/your-org/salary_management/actions/workflows/ci.yaml/badge.svg)](https://github.com/your-org/salary_management/actions/workflows/ci.yaml)
-[![Build](https://github.com/your-org/salary_management/actions/workflows/build.yaml/badge.svg)](https://github.com/your-org/salary_management/actions/workflows/build.yaml)
-[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen?logo=pytest)](https://github.com/your-org/salary_management/actions/workflows/ci.yaml)
-[![Tests](https://img.shields.io/badge/tests-299%20passed-brightgreen?logo=pytest)](https://github.com/your-org/salary_management/actions/workflows/ci.yaml)
+[![CI](https://github.com/utkarshpandey12/salary_management/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/utkarshpandey12/salary_management/actions/workflows/ci.yaml)
+[![Build](https://github.com/utkarshpandey12/salary_management/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/utkarshpandey12/salary_management/actions/workflows/build.yaml)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen?logo=pytest)](https://github.com/utkarshpandey12/salary_management/actions/workflows/ci.yaml)
+[![Tests](https://img.shields.io/badge/tests-299%20passed-brightgreen?logo=pytest)](https://github.com/utkarshpandey12/salary_management/actions/workflows/ci.yaml)
 [![Python](https://img.shields.io/badge/python-3.12-blue?logo=python)](https://www.python.org)
 [![Django](https://img.shields.io/badge/Django-5.2-092E20?logo=django)](https://www.djangoproject.com)
 [![DRF](https://img.shields.io/badge/DRF-3.15-red?logo=django)](https://www.django-rest-framework.org)
@@ -149,7 +149,7 @@ uv run ruff check . && uv run ruff format --check . && uv run pre-commit run --a
 uv run pytest --cov=apps --cov-report=term-missing
 ```
 
-Badge: `![CI](https://github.com/your-org/salary_management/actions/workflows/ci.yaml/badge.svg)`
+Badge: `![CI](https://github.com/utkarshpandey12/salary_management/actions/workflows/ci.yaml/badge.svg?branch=main)`
 
 ## Build & Release — `.github/workflows/build.yaml` + `Dockerfile` + `entrypoint.sh` + `build.sh`
 
@@ -175,7 +175,7 @@ chmod +x entrypoint.sh
 
 ```bash
 ./build.sh [tag]              # default salary-management:local
-./build.sh ghcr.io/OWNER/salary_management:latest --push
+./build.sh ghcr.io/utkarshpandey12/salary_management:latest --push
 PUSH=1 ./build.sh
 # Prints: Image ID (sha), Digest, Size, Run examples
 # Outputs GITHUB_OUTPUT image/sha/digest in CI
@@ -201,7 +201,7 @@ docker run -p 8000:8000 \
 docker run salary-management:local celery
 ```
 
-Workflow badges: `![Build](https://github.com/your-org/salary_management/actions/workflows/build.yaml/badge.svg)`; image SHA printed in build logs and release notes.
+Workflow badges: `![Build](https://github.com/utkarshpandey12/salary_management/actions/workflows/build.yaml/badge.svg?branch=main)`; image SHA printed in build logs and release notes.
 
 ## Project Structure
 

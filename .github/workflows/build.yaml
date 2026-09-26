@@ -88,11 +88,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create auto release on main push
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: main-${{ github.run_number }}-${{ github.sha }}
+          name: Release main-${{ github.run_number }}
+          generate_release_notes: true
+          body: |
+            Auto release from main push.
+            - Commit: ${{ github.sha }}
+            - Image: `ghcr.io/${{ github.repository }}:main`
+            - Digest: `${{ steps.build.outputs.digest }}`
+            - Tags: `${{ steps.meta.outputs.tags }}`
+          files: |
+            README.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 # Usage:
-# - Push to main builds ghcr.io/<owner>/salary_management:main + :<sha> + :latest
+# - Push to main builds ghcr.io/utkarshpandey12/salary_management:main + :<sha> + :latest AND creates auto release main-<run_number>-<sha>
 # - Push tag v* builds :<version> + creates GitHub Release with notes
 # - Manual: gh workflow run build.yaml -f tag=v0.2.0
 # - Image SHA printed in logs and $GITHUB_STEP_SUMMARY
 # - No docker-compose.yml needed; run via:
-#   docker run -p 8000:8000 -e DJANGO_SECRET_KEY=xxx ghcr.io/<owner>/salary_management:latest
+#   docker run -p 8000:8000 -e DJANGO_SECRET_KEY=xxx ghcr.io/utkarshpandey12/salary_management:latest
 #   or with redis/minio via -e CELERY_BROKER_URL=... -e USE_MINIO=1 ...
