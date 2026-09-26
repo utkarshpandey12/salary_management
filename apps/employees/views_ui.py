@@ -253,6 +253,11 @@ class DepartmentListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return Department.objects.annotate(count=Count("employees"), avg_sal=Avg("employees__salary__net_in_hand"), max_sal=Max("employees__salary__net_in_hand"), min_sal=Min("employees__salary__net_in_hand")).order_by("name")
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["is_hr"] = self.request.user.is_hr
+        return ctx
+
 
 class DepartmentDetailView(LoginRequiredMixin, DetailView):
     model = Department
@@ -262,7 +267,7 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         dept = self.object
-        emps = Employee.objects.filter(department=dept).select_related("salary").order_by("employee_id")
+        emps = Employee.objects.filter(department=dept).select_related("salary", "manager").order_by("employee_id")
         # HTMX pagination? Use simple paginator
         from django.core.paginator import Paginator
         paginator = Paginator(emps, 25)
@@ -270,6 +275,7 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
         page_obj = paginator.get_page(page_number)
         ctx["page_obj"] = page_obj
         ctx["employees"] = page_obj.object_list
+        ctx["is_hr"] = self.request.user.is_hr
         # stats
         ctx["stats"] = Employee.objects.filter(department=dept, salary__isnull=False).aggregate(
             count=Count("id"),

@@ -13,12 +13,18 @@
     </div>
 </div>
 
+{% if is_hr %}
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
     <div class="bg-white border rounded-xl p-4 text-center"><div class="text-2xl font-bold">{{ stats.count|intcomma }}</div><div class="text-xs text-slate-500 uppercase">Members</div></div>
     <div class="bg-white border rounded-xl p-4 text-center"><div class="text-lg font-bold">{% if stats.avg %}₹ {{ stats.avg|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500 uppercase">Avg net</div></div>
     <div class="bg-white border rounded-xl p-4 text-center"><div class="text-lg font-bold">{% if median %}₹ {{ median|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500 uppercase">Median</div></div>
     <div class="bg-white border rounded-xl p-4 text-center"><div class="text-sm font-semibold">{% if stats.min %}₹ {{ stats.min|floatformat:0|intcomma }} — {% if stats.max %}₹ {{ stats.max|floatformat:0|intcomma }}{% endif %}{% else %}—{% endif %}</div><div class="text-xs text-slate-500 uppercase">Range (min–max)</div></div>
 </div>
+{% else %}
+<div class="grid grid-cols-1 gap-4 mb-6">
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-2xl font-bold">{{ stats.count|intcomma }}</div><div class="text-xs text-slate-500 uppercase">Members</div><div class="text-xs text-slate-500 mt-1">Salary details are confidential</div></div>
+</div>
+{% endif %}
 
 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
     <div class="p-4 border-b flex items-center justify-between">
@@ -28,7 +34,7 @@
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
-                <tr><th class="text-left px-4 py-3">Employee</th><th class="text-left px-4 py-3">Job Title</th><th class="text-left px-4 py-3">Country</th><th class="text-right px-4 py-3">Net</th></tr>
+                <tr><th class="text-left px-4 py-3">Employee</th><th class="text-left px-4 py-3">Job Title</th><th class="text-left px-4 py-3">Country</th>{% if is_hr %}<th class="text-right px-4 py-3">Net</th>{% endif %}</tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
                 {% for e in employees %}
@@ -36,7 +42,7 @@
                     <td class="px-4 py-3"><a href="{% url 'employee-detail' e.employee_id %}" class="font-medium text-indigo-600 hover:underline">{{ e.employee_id }}</a><div class="font-medium">{{ e.full_name }}</div><div class="text-xs text-slate-500">{{ e.email }}</div></td>
                     <td class="px-4 py-3">{{ e.job_title }}</td>
                     <td class="px-4 py-3">{{ e.country }}</td>
-                    <td class="px-4 py-3 text-right">{% if e.salary %}₹ {{ e.salary.net_in_hand|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                    {% if is_hr %}<td class="px-4 py-3 text-right">{% if e.salary %}₹ {{ e.salary.net_in_hand|floatformat:0|intcomma }}{% else %}—{% endif %}</td>{% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
