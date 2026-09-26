@@ -21,5 +21,4 @@ staticfiles
 .idea
 .vscode
 .DS_Store
-uv.lock
 *.log
