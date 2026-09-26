@@ -1,5 +1,6 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 
 class PayrollExport(models.Model):
     class Status(models.TextChoices):
@@ -15,7 +16,9 @@ class PayrollExport(models.Model):
     requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     month = models.DateField(help_text="First day of month for payroll")
     format = models.CharField(max_length=10, choices=Format.choices)
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
     celery_task_id = models.CharField(max_length=100, blank=True)
     file = models.FileField(upload_to="payroll_exports/", blank=True, null=True)
     error = models.TextField(blank=True)

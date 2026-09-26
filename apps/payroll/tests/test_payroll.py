@@ -1,32 +1,82 @@
-import pytest
 from decimal import Decimal
+
+import pytest
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
-from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
+
 from apps.employees.models import Department, Employee, SalaryStructure
-from apps.reimbursements.models import Reimbursement
 from apps.payroll.models import PayrollExport
 from apps.payroll.tasks import get_payroll_rows
+from apps.reimbursements.models import Reimbursement
 
 User = get_user_model()
+
 
 @pytest.mark.django_db
 class TestPayroll(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name="Eng", code="ENG")
         self.hr = User.objects.create_user(username="hr", password="pass", role=User.Role.HR)
-        self.emp_user = User.objects.create_user(username="emp", password="pass", role=User.Role.EMPLOYEE)
-        self.emp = Employee.objects.create(employee_id="ACME-00001", first_name="John", last_name="Doe", email="john@acme.test", country="India", job_title="Engineer", department=self.dept, date_of_joining="2020-01-01", user=self.emp_user, status="ACTIVE")
-        self.emp2 = Employee.objects.create(employee_id="ACME-00002", first_name="Jane", last_name="Smith", email="jane@acme.test", country="India", job_title="Engineer", department=self.dept, date_of_joining="2020-01-01", status="ACTIVE")
-        SalaryStructure.objects.create(employee=self.emp, basic_salary=Decimal("50000"), house_rent_allowance=Decimal("10000"), pf_deduction=Decimal("2000"))
-        SalaryStructure.objects.create(employee=self.emp2, basic_salary=Decimal("60000"), house_rent_allowance=Decimal("10000"), pf_deduction=Decimal("2000"))
+        self.emp_user = User.objects.create_user(
+            username="emp", password="pass", role=User.Role.EMPLOYEE
+        )
+        self.emp = Employee.objects.create(
+            employee_id="ACME-00001",
+            first_name="John",
+            last_name="Doe",
+            email="john@acme.test",
+            country="India",
+            job_title="Engineer",
+            department=self.dept,
+            date_of_joining="2020-01-01",
+            user=self.emp_user,
+            status="ACTIVE",
+        )
+        self.emp2 = Employee.objects.create(
+            employee_id="ACME-00002",
+            first_name="Jane",
+            last_name="Smith",
+            email="jane@acme.test",
+            country="India",
+            job_title="Engineer",
+            department=self.dept,
+            date_of_joining="2020-01-01",
+            status="ACTIVE",
+        )
+        SalaryStructure.objects.create(
+            employee=self.emp,
+            basic_salary=Decimal("50000"),
+            house_rent_allowance=Decimal("10000"),
+            pf_deduction=Decimal("2000"),
+        )
+        SalaryStructure.objects.create(
+            employee=self.emp2,
+            basic_salary=Decimal("60000"),
+            house_rent_allowance=Decimal("10000"),
+            pf_deduction=Decimal("2000"),
+        )
         # reimbursement for current month
-        Reimbursement.objects.create(employee=self.emp, title="Trip", purpose="x", amount=Decimal("1500"), expense_date="2026-09-10", status="APPROVED")
-        Reimbursement.objects.create(employee=self.emp, title="Pending", purpose="x", amount=Decimal("9999"), expense_date="2026-09-10", status="PENDING")
+        Reimbursement.objects.create(
+            employee=self.emp,
+            title="Trip",
+            purpose="x",
+            amount=Decimal("1500"),
+            expense_date="2026-09-10",
+            status="APPROVED",
+        )
+        Reimbursement.objects.create(
+            employee=self.emp,
+            title="Pending",
+            purpose="x",
+            amount=Decimal("9999"),
+            expense_date="2026-09-10",
+            status="PENDING",
+        )
 
     def test_get_payroll_rows(self):
         from datetime import date
+
         rows = get_payroll_rows(date(2026, 9, 1))
         self.assertEqual(len(rows), 2)
         # find emp
@@ -54,7 +104,9 @@ class TestPayroll(TestCase):
         c = APIClient()
         c.force_authenticate(user=self.hr)
         # excel
-        resp = c.post("/api/payroll/exports/", {"month": "2026-09-01", "format": "EXCEL"}, format="json")
+        resp = c.post(
+            "/api/payroll/exports/", {"month": "2026-09-01", "format": "EXCEL"}, format="json"
+        )
         self.assertEqual(resp.status_code, 201)
         exp = PayrollExport.objects.get(id=resp.data["id"])
         # eager: should be completed quickly
@@ -62,7 +114,9 @@ class TestPayroll(TestCase):
         self.assertEqual(exp.status, "COMPLETED")
         self.assertTrue(exp.file.name.endswith(".xlsx"))
         # pdf
-        resp2 = c.post("/api/payroll/exports/", {"month": "2026-09-01", "format": "PDF"}, format="json")
+        resp2 = c.post(
+            "/api/payroll/exports/", {"month": "2026-09-01", "format": "PDF"}, format="json"
+        )
         self.assertEqual(resp2.status_code, 201)
         exp2 = PayrollExport.objects.get(id=resp2.data["id"])
         exp2.refresh_from_db()
@@ -71,6 +125,7 @@ class TestPayroll(TestCase):
 
     def test_payroll_recomputes_after_salary_edit(self):
         from datetime import date
+
         rows_before = get_payroll_rows(date(2026, 9, 1))
         r_before = [r for r in rows_before if r["empID"] == "ACME-00001"][0]["total_amount"]
         # increase salary
@@ -85,6 +140,7 @@ class TestPayroll(TestCase):
         self.emp2.status = "INACTIVE"
         self.emp2.save()
         from datetime import date
+
         rows = get_payroll_rows(date(2026, 9, 1))
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["empID"], "ACME-00001")

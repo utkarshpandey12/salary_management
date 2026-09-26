@@ -1,14 +1,13 @@
-from django.views.generic import ListView, CreateView, DetailView, View
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
-from django.contrib import messages
 from django.utils import timezone
-from django.http import HttpResponse
+from django.views.generic import CreateView, DetailView, ListView, View
 
-from .models import Reimbursement
 from .forms import ReimbursementForm
-from apps.employees.models import Employee
+from .models import Reimbursement
+
 
 class ReimbursementListView(LoginRequiredMixin, ListView):
     model = Reimbursement
@@ -43,7 +42,7 @@ class ReimbursementListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["is_hr"] = self.request.user.is_hr
-        ctx["status"] = self.request.GET.get("status","")
+        ctx["status"] = self.request.GET.get("status", "")
         return ctx
 
     def get_template_names(self):
@@ -122,7 +121,11 @@ class ReimbursementActionView(LoginRequiredMixin, UserPassesTestMixin, View):
         if obj.status != Reimbursement.Status.PENDING:
             messages.warning(request, f"Already {obj.status}")
             if request.htmx:
-                return render(request, "reimbursements/partials/reimbursement_row.html", {"r": obj, "is_hr": True})
+                return render(
+                    request,
+                    "reimbursements/partials/reimbursement_row.html",
+                    {"r": obj, "is_hr": True},
+                )
             return redirect("reimbursement-detail", pk=obj.pk)
         if action == "approve":
             obj.status = Reimbursement.Status.APPROVED
@@ -133,8 +136,10 @@ class ReimbursementActionView(LoginRequiredMixin, UserPassesTestMixin, View):
             return redirect("reimbursement-detail", pk=obj.pk)
         obj.reviewed_by = request.user
         obj.reviewed_at = timezone.now()
-        obj.save(update_fields=["status","reviewed_by","reviewed_at","updated_at"])
+        obj.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
         messages.success(request, f"Reimbursement {obj.status.lower()}.")
         if request.htmx:
-            return render(request, "reimbursements/partials/reimbursement_row.html", {"r": obj, "is_hr": True})
+            return render(
+                request, "reimbursements/partials/reimbursement_row.html", {"r": obj, "is_hr": True}
+            )
         return redirect("reimbursement-detail", pk=obj.pk)

@@ -1,26 +1,28 @@
 from datetime import date
 from decimal import Decimal
-from django.views.generic import ListView, TemplateView, View
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.shortcuts import render, redirect, get_object_or_404
+
 from django.contrib import messages
-from django.http import HttpResponse, FileResponse, Http404
-from django.utils import timezone
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.paginator import Paginator
+from django.http import FileResponse, Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.generic import ListView, TemplateView, View
 
 from .models import PayrollExport
-from .tasks import get_payroll_rows, generate_payroll_export
-from apps.reimbursements.models import Reimbursement
-from apps.employees.models import Employee
+from .tasks import generate_payroll_export, get_payroll_rows
+
 
 class HRRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_authenticated and self.request.user.is_hr
+
     def handle_no_permission(self):
         if not self.request.user.is_authenticated:
             return redirect(f"/accounts/login/?next={self.request.path}")
         messages.error(self.request, "HR access required.")
         return redirect("dashboard")
+
 
 class PayrollView(HRRequiredMixin, TemplateView):
     template_name = "payroll/payroll.html"
@@ -31,8 +33,8 @@ class PayrollView(HRRequiredMixin, TemplateView):
         if month_str:
             try:
                 if len(month_str) == 7:
-                    y,m = map(int, month_str.split("-"))
-                    month_date = date(y,m,1)
+                    y, m = map(int, month_str.split("-"))
+                    month_date = date(y, m, 1)
                 else:
                     month_date = date.fromisoformat(month_str).replace(day=1)
             except:
@@ -52,19 +54,25 @@ class PayrollView(HRRequiredMixin, TemplateView):
         total_all = sum((r["total_amount"] for r in rows), Decimal("0"))
 
         # recent exports
-        exports = PayrollExport.objects.filter(requested_by=self.request.user).order_by("-created_at")[:5] if self.request.user.is_authenticated else []
+        exports = (
+            PayrollExport.objects.filter(requested_by=self.request.user).order_by("-created_at")[:5]
+            if self.request.user.is_authenticated
+            else []
+        )
 
-        ctx.update({
-            "month": month_date,
-            "month_str": month_date.strftime("%Y-%m"),
-            "page_obj": page_obj,
-            "rows": page_obj.object_list,
-            "total_salary": total_salary,
-            "total_reimb": total_reimb,
-            "total_all": total_all,
-            "count": len(rows),
-            "exports": exports,
-        })
+        ctx.update(
+            {
+                "month": month_date,
+                "month_str": month_date.strftime("%Y-%m"),
+                "page_obj": page_obj,
+                "rows": page_obj.object_list,
+                "total_salary": total_salary,
+                "total_reimb": total_reimb,
+                "total_all": total_all,
+                "count": len(rows),
+                "exports": exports,
+            }
+        )
         return ctx
 
     def get_template_names(self):
@@ -77,13 +85,13 @@ class PayrollExportCreateView(HRRequiredMixin, View):
     def post(self, request):
         fmt = request.POST.get("format", "EXCEL").upper()
         month_str = request.POST.get("month")
-        if fmt not in ("EXCEL","PDF"):
+        if fmt not in ("EXCEL", "PDF"):
             messages.error(request, "Invalid format")
             return redirect("payroll")
         try:
-            if month_str and len(month_str)==7:
-                y,m = map(int, month_str.split("-"))
-                month_date = date(y,m,1)
+            if month_str and len(month_str) == 7:
+                y, m = map(int, month_str.split("-"))
+                month_date = date(y, m, 1)
             elif month_str:
                 month_date = date.fromisoformat(month_str).replace(day=1)
             else:
@@ -93,7 +101,9 @@ class PayrollExportCreateView(HRRequiredMixin, View):
             messages.error(request, "Invalid month")
             return redirect("payroll")
 
-        export = PayrollExport.objects.create(requested_by=request.user, month=month_date, format=fmt)
+        export = PayrollExport.objects.create(
+            requested_by=request.user, month=month_date, format=fmt
+        )
         # trigger task
         try:
             generate_payroll_export.delay(export.id)
@@ -108,6 +118,7 @@ class PayrollExportCreateView(HRRequiredMixin, View):
             return render(request, "payroll/partials/export_status.html", {"export": export})
         return redirect("payroll")
 
+
 class PayrollExportListView(HRRequiredMixin, ListView):
     model = PayrollExport
     template_name = "payroll/export_list.html"
@@ -117,6 +128,7 @@ class PayrollExportListView(HRRequiredMixin, ListView):
     def get_queryset(self):
         return PayrollExport.objects.filter(requested_by=self.request.user).order_by("-created_at")
 
+
 class PayrollExportStatusView(HRRequiredMixin, View):
     def get(self, request, pk):
         export = get_object_or_404(PayrollExport, pk=pk, requested_by=request.user)
@@ -124,9 +136,12 @@ class PayrollExportStatusView(HRRequiredMixin, View):
             return render(request, "payroll/partials/export_status.html", {"export": export})
         return render(request, "payroll/export_status.html", {"export": export})
 
+
 class PayrollExportDownloadView(HRRequiredMixin, View):
     def get(self, request, pk):
         export = get_object_or_404(PayrollExport, pk=pk)
         if export.status != PayrollExport.Status.COMPLETED or not export.file:
             raise Http404("Export not ready")
-        return FileResponse(export.file.open("rb"), as_attachment=True, filename=export.file.name.split("/")[-1])
+        return FileResponse(
+            export.file.open("rb"), as_attachment=True, filename=export.file.name.split("/")[-1]
+        )

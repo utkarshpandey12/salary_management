@@ -1,9 +1,9 @@
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import AuthenticationForm
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.views.generic import FormView, View
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views.generic import FormView, View
+
 
 class LoginView(FormView):
     template_name = "accounts/login.html"
@@ -20,10 +20,12 @@ class LoginView(FormView):
         ctx["hide_nav"] = True
         return ctx
 
+
 class LogoutView(View):
     def post(self, request):
         logout(request)
         return redirect("login")
+
     def get(self, request):
         logout(request)
         return redirect("login")

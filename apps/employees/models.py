@@ -1,8 +1,10 @@
 from decimal import Decimal
-from django.db import models
+
 from django.conf import settings
 from django.core.validators import MinValueValidator, RegexValidator
+from django.db import models
 from django.db.models import Q
+
 
 class Department(models.Model):
     name = models.CharField(max_length=100, unique=True, db_index=True)
@@ -21,15 +23,26 @@ class Department(models.Model):
 
 class TaxBracket(models.Model):
     country = models.CharField(max_length=100, db_index=True)
-    lower_limit = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))])
-    upper_limit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Null = no upper bound")
-    rate = models.DecimalField(max_digits=5, decimal_places=2, help_text="Percentage e.g. 10.00 for 10%", validators=[MinValueValidator(Decimal("0.00"))])
+    lower_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))]
+    )
+    upper_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, help_text="Null = no upper bound"
+    )
+    rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Percentage e.g. 10.00 for 10%",
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
     description = models.CharField(max_length=200, blank=True)
 
     class Meta:
         ordering = ["country", "lower_limit"]
         constraints = [
-            models.UniqueConstraint(fields=["country", "lower_limit"], name="uniq_tax_bracket_country_lower"),
+            models.UniqueConstraint(
+                fields=["country", "lower_limit"], name="uniq_tax_bracket_country_lower"
+            ),
         ]
         indexes = [
             models.Index(fields=["country", "lower_limit"]),
@@ -58,7 +71,7 @@ class TaxBracket(models.Model):
             upper = b.upper_limit if b.upper_limit is not None else gross
             taxable_in_bracket = min(gross, upper) - b.lower_limit
             if taxable_in_bracket > 0:
-                tax += (taxable_in_bracket * b.rate / Decimal("100"))
+                tax += taxable_in_bracket * b.rate / Decimal("100")
         return tax.quantize(Decimal("0.01"))
 
 
@@ -99,10 +112,16 @@ class Employee(models.Model):
     country = models.CharField(max_length=100, db_index=True)
     job_title = models.CharField(max_length=100, db_index=True)
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="employees")
-    employment_type = models.CharField(max_length=20, choices=EmploymentType.choices, default=EmploymentType.FULL_TIME)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    employment_type = models.CharField(
+        max_length=20, choices=EmploymentType.choices, default=EmploymentType.FULL_TIME
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True
+    )
     date_of_joining = models.DateField()
-    manager = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="reports")
+    manager = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="reports"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -129,19 +148,50 @@ class Employee(models.Model):
 class SalaryStructure(models.Model):
     employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="salary")
     # Components (monthly)
-    basic_salary = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))])
-    house_rent_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="House Allowance (HRA)")
-    dearness_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Dearness Allowance (DA)")
-    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Transport Allowance (TA)")
-    telephone_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    special_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
-    pf_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="PF Deduction")
+    basic_salary = models.DecimalField(
+        max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))]
+    )
+    house_rent_allowance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="House Allowance (HRA)",
+    )
+    dearness_allowance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Dearness Allowance (DA)",
+    )
+    transport_allowance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Transport Allowance (TA)",
+    )
+    telephone_allowance = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    special_allowance = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    pf_deduction = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="PF Deduction"
+    )
     professional_tax = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     # Computed (stored for fast payroll queries)
-    gross_salary = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00"))
-    tax_deduction = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00"))
-    net_in_hand = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00"))
-    total_compensation = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00"))
+    gross_salary = models.DecimalField(
+        max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00")
+    )
+    tax_deduction = models.DecimalField(
+        max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00")
+    )
+    net_in_hand = models.DecimalField(
+        max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00")
+    )
+    total_compensation = models.DecimalField(
+        max_digits=12, decimal_places=2, editable=False, default=Decimal("0.00")
+    )
     effective_from = models.DateField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
