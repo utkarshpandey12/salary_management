@@ -1,14 +1,22 @@
 from django.utils import timezone
-from rest_framework import viewsets, mixins, status
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from apps.accounts.permissions import IsHR
+
 from .models import Reimbursement
 from .serializers import ReimbursementSerializer
 
-class ReimbursementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+
+class ReimbursementViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
     serializer_class = ReimbursementSerializer
     permission_classes = [IsAuthenticated]
 
@@ -28,7 +36,11 @@ class ReimbursementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mix
         if status_f:
             qs = qs.filter(status=status_f)
         if employee and user.is_hr:
-            qs = qs.filter(employee_id=employee) if employee.isdigit() else qs.filter(employee__employee_id=employee)
+            qs = (
+                qs.filter(employee_id=employee)
+                if employee.isdigit()
+                else qs.filter(employee__employee_id=employee)
+            )
         return qs.order_by("-created_at")
 
     def perform_create(self, serializer):
@@ -47,7 +59,12 @@ class ReimbursementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mix
         # force employee to own
         serializer.save(employee=emp, status=Reimbursement.Status.PENDING)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsHR], url_path="approve")
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated, IsHR],
+        url_path="approve",
+    )
     def approve(self, request, pk=None):
         obj = self.get_object()
         if obj.status != Reimbursement.Status.PENDING:
@@ -58,7 +75,9 @@ class ReimbursementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mix
         obj.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
         return Response(ReimbursementSerializer(obj).data)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsHR], url_path="reject")
+    @action(
+        detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsHR], url_path="reject"
+    )
     def reject(self, request, pk=None):
         obj = self.get_object()
         if obj.status != Reimbursement.Status.PENDING:

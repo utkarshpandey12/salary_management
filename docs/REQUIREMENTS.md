@@ -1,7 +1,7 @@
 # Salary Management Tool — Requirements Document
 
-**Version:** 1.0 — 26 Sep 2026  
-**Author:** Salary Management Team  
+**Version:** 1.0 — 26 Sep 2026
+**Author:** Salary Management Team
 **Status:** Approved for Build
 
 ---

@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Department, Employee, SalaryStructure, TaxBracket
+
 
 class DepartmentSerializer(serializers.ModelSerializer):
     employee_count = serializers.IntegerField(read_only=True)
@@ -37,11 +39,26 @@ class SalaryStructureSerializer(serializers.ModelSerializer):
             "effective_from",
             "updated_at",
         ]
-        read_only_fields = ["id", "gross_salary", "tax_deduction", "net_in_hand", "total_compensation", "effective_from", "updated_at"]
+        read_only_fields = [
+            "id",
+            "gross_salary",
+            "tax_deduction",
+            "net_in_hand",
+            "total_compensation",
+            "effective_from",
+            "updated_at",
+        ]
 
     def validate(self, attrs):
         # ensure gross components are sensible
-        for f in ["basic_salary", "house_rent_allowance", "dearness_allowance", "transport_allowance", "telephone_allowance", "special_allowance"]:
+        for f in [
+            "basic_salary",
+            "house_rent_allowance",
+            "dearness_allowance",
+            "transport_allowance",
+            "telephone_allowance",
+            "special_allowance",
+        ]:
             if f in attrs and attrs[f] < 0:
                 raise serializers.ValidationError({f: "Must be non-negative"})
         return attrs
@@ -50,7 +67,13 @@ class SalaryStructureSerializer(serializers.ModelSerializer):
 class EmployeeListSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source="department.name", read_only=True)
     department_code = serializers.CharField(source="department.code", read_only=True)
-    net_in_hand = serializers.DecimalField(source="salary.net_in_hand", max_digits=12, decimal_places=2, read_only=True, allow_null=True)
+    net_in_hand = serializers.DecimalField(
+        source="salary.net_in_hand",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Employee
@@ -78,7 +101,9 @@ class EmployeeListSerializer(serializers.ModelSerializer):
 class EmployeeDetailSerializer(serializers.ModelSerializer):
     department_detail = DepartmentSerializer(source="department", read_only=True)
     salary = SalaryStructureSerializer(read_only=True)
-    manager_name = serializers.CharField(source="manager.full_name", read_only=True, allow_null=True)
+    manager_name = serializers.CharField(
+        source="manager.full_name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Employee
@@ -161,6 +186,7 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
         else:
             # create default salary
             from decimal import Decimal
+
             SalaryStructure.objects.create(employee=employee, basic_salary=Decimal("50000.00"))
         return employee
 

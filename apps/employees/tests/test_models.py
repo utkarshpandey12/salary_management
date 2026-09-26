@@ -1,31 +1,60 @@
-import pytest
 from decimal import Decimal
-from django.test import TestCase
+
+import pytest
 from django.contrib.auth import get_user_model
+from django.test import TestCase
+
 from apps.employees.models import Department, Employee, SalaryStructure, TaxBracket
 
 User = get_user_model()
+
 
 @pytest.mark.django_db
 class TestSalaryComputation(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name="Engineering", code="ENG", description="Eng")
         # create tax brackets for test country
-        TaxBracket.objects.create(country="Testland", lower_limit=Decimal("0"), upper_limit=Decimal("300000"), rate=Decimal("0"))
-        TaxBracket.objects.create(country="Testland", lower_limit=Decimal("300000"), upper_limit=Decimal("600000"), rate=Decimal("10"))
-        TaxBracket.objects.create(country="Testland", lower_limit=Decimal("600000"), upper_limit=None, rate=Decimal("20"))
+        TaxBracket.objects.create(
+            country="Testland",
+            lower_limit=Decimal("0"),
+            upper_limit=Decimal("300000"),
+            rate=Decimal("0"),
+        )
+        TaxBracket.objects.create(
+            country="Testland",
+            lower_limit=Decimal("300000"),
+            upper_limit=Decimal("600000"),
+            rate=Decimal("10"),
+        )
+        TaxBracket.objects.create(
+            country="Testland", lower_limit=Decimal("600000"), upper_limit=None, rate=Decimal("20")
+        )
 
     def test_employee_full_name_auto(self):
         emp = Employee.objects.create(
-            employee_id="ACME-00001", first_name="John", last_name="Doe", email="john@acme.test",
-            country="Testland", job_title="Engineer", department=self.dept, date_of_joining="2020-01-01", phone="123", address="Addr"
+            employee_id="ACME-00001",
+            first_name="John",
+            last_name="Doe",
+            email="john@acme.test",
+            country="Testland",
+            job_title="Engineer",
+            department=self.dept,
+            date_of_joining="2020-01-01",
+            phone="123",
+            address="Addr",
         )
         self.assertEqual(emp.full_name, "John Doe")
 
     def test_salary_recompute_gross_and_tax(self):
         emp = Employee.objects.create(
-            employee_id="ACME-00002", first_name="Jane", last_name="Roe", email="jane@acme.test",
-            country="Testland", job_title="Engineer", department=self.dept, date_of_joining="2020-01-01"
+            employee_id="ACME-00002",
+            first_name="Jane",
+            last_name="Roe",
+            email="jane@acme.test",
+            country="Testland",
+            job_title="Engineer",
+            department=self.dept,
+            date_of_joining="2020-01-01",
         )
         sal = SalaryStructure.objects.create(
             employee=emp,
@@ -48,8 +77,14 @@ class TestSalaryComputation(TestCase):
 
     def test_salary_update_recomputes(self):
         emp = Employee.objects.create(
-            employee_id="ACME-00003", first_name="Bob", last_name="Lee", email="bob@acme.test",
-            country="Testland", job_title="Engineer", department=self.dept, date_of_joining="2020-01-01"
+            employee_id="ACME-00003",
+            first_name="Bob",
+            last_name="Lee",
+            email="bob@acme.test",
+            country="Testland",
+            job_title="Engineer",
+            department=self.dept,
+            date_of_joining="2020-01-01",
         )
         sal = SalaryStructure.objects.create(employee=emp, basic_salary=Decimal("40000"))
         orig_net = sal.net_in_hand
@@ -60,14 +95,22 @@ class TestSalaryComputation(TestCase):
 
     def test_tax_bracket_global_fallback(self):
         # no Testland2 brackets -> should use GLOBAL or 0
-        TaxBracket.objects.create(country="GLOBAL", lower_limit=Decimal("0"), upper_limit=None, rate=Decimal("0"))
+        TaxBracket.objects.create(
+            country="GLOBAL", lower_limit=Decimal("0"), upper_limit=None, rate=Decimal("0")
+        )
         tax = TaxBracket.compute_tax("Testland2", Decimal("1000000"))
         self.assertEqual(tax, Decimal("0.00"))
 
     def test_employee_indexes_and_constraints(self):
         emp = Employee.objects.create(
-            employee_id="ACME-00004", first_name="A", last_name="B", email="a@acme.test",
-            country="India", job_title="Engineer", department=self.dept, date_of_joining="2020-01-01"
+            employee_id="ACME-00004",
+            first_name="A",
+            last_name="B",
+            email="a@acme.test",
+            country="India",
+            job_title="Engineer",
+            department=self.dept,
+            date_of_joining="2020-01-01",
         )
         self.assertTrue(Employee.objects.filter(country="India").exists())
         # duplicate email should fail? uniqueness enforced at DB — test API would catch

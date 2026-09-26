@@ -1,24 +1,33 @@
 from decimal import Decimal
-from django.db.models import Avg, Min, Max, Count, Q, F
+
+from django.db.models import Avg, Count, Max, Min
 from django.db.models.functions import Coalesce
-from rest_framework import viewsets, mixins, status, filters
+from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.generics import ListAPIView
-from apps.accounts.permissions import IsHR, IsHROrReadOnly
+from rest_framework.response import Response
+
+from apps.accounts.permissions import IsHR
+
 from .models import Department, Employee, SalaryStructure, TaxBracket
 from .serializers import (
     DepartmentSerializer,
-    EmployeeListSerializer,
-    EmployeeDetailSerializer,
     EmployeeCreateSerializer,
+    EmployeeDetailSerializer,
+    EmployeeListSerializer,
     SalaryStructureSerializer,
     TaxBracketSerializer,
 )
 
+
 # Use mixins as requested
-class DepartmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class DepartmentViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = Department.objects.all().order_by("name")
     serializer_class = DepartmentSerializer
     permission_classes = [IsAuthenticated]
@@ -37,10 +46,25 @@ class DepartmentViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins
         return [IsAuthenticated()]
 
 
-class EmployeeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
+class EmployeeViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["employee_id", "full_name", "first_name", "last_name", "email", "job_title", "country"]
+    search_fields = [
+        "employee_id",
+        "full_name",
+        "first_name",
+        "last_name",
+        "email",
+        "job_title",
+        "country",
+    ]
     ordering_fields = ["employee_id", "full_name", "date_of_joining", "country", "job_title"]
 
     def get_queryset(self):
@@ -56,7 +80,11 @@ class EmployeeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.C
         if params.get("employee_id"):
             qs = qs.filter(employee_id__iexact=params.get("employee_id"))
         if department:
-            qs = qs.filter(department_id=department) if department.isdigit() else qs.filter(department__code=department)
+            qs = (
+                qs.filter(department_id=department)
+                if department.isdigit()
+                else qs.filter(department__code=department)
+            )
         if country:
             qs = qs.filter(country__iexact=country)
         if job_title:
@@ -98,6 +126,7 @@ class EmployeeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.C
             pass
         if not own:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("Only HR or own profile can be updated.")
         # whitelisted fields
         allowed = {"phone", "address", "city"}
@@ -120,10 +149,12 @@ class EmployeeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.C
                 pass
             if not own and request.method in ("PUT", "PATCH"):
                 from rest_framework.exceptions import PermissionDenied
+
                 raise PermissionDenied("Only HR can update salary.")
             if not own and request.method == "GET":
                 # hide? but detail serializer already hides; we explicitly block
                 from rest_framework.exceptions import PermissionDenied
+
                 raise PermissionDenied("Salary visible only to HR or owner.")
 
         try:
@@ -133,13 +164,16 @@ class EmployeeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.C
 
         if request.method == "GET":
             if not salary:
-                return Response({"detail": "No salary structure found"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"detail": "No salary structure found"}, status=status.HTTP_404_NOT_FOUND
+                )
             ser = SalaryStructureSerializer(salary)
             return Response(ser.data)
 
         # PUT/PATCH
         if not request.user.is_hr:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("Only HR can edit salary")
         data = request.data
         if salary:
@@ -156,7 +190,12 @@ class EmployeeViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.C
         return Response(ser.data)
 
 
-class TaxBracketViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+class TaxBracketViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = TaxBracket.objects.all().order_by("country", "lower_limit")
     serializer_class = TaxBracketSerializer
     permission_classes = [IsAuthenticated, IsHR]
@@ -182,7 +221,11 @@ class AnalyticsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if job_title:
             qs = qs.filter(job_title__iexact=job_title)
         if department:
-            qs = qs.filter(department_id=department) if department.isdigit() else qs.filter(department__code=department)
+            qs = (
+                qs.filter(department_id=department)
+                if department.isdigit()
+                else qs.filter(department__code=department)
+            )
 
         # Overall stats
         agg = qs.aggregate(
@@ -191,16 +234,20 @@ class AnalyticsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             min_salary=Min("salary__net_in_hand"),
             max_salary=Max("salary__net_in_hand"),
             avg_gross=Avg("salary__gross_salary"),
-            total_payroll=Coalesce(Avg("salary__net_in_hand"), Decimal("0")) * Count("id"),  # placeholder
+            total_payroll=Coalesce(Avg("salary__net_in_hand"), Decimal("0"))
+            * Count("id"),  # placeholder
         )
         # more accurate total
         from django.db.models import Sum
+
         total = qs.aggregate(total=Sum("salary__net_in_hand"))["total"] or Decimal("0")
         agg["total_payroll"] = total
 
         # Median: need ordered values – fetch only net salaries, not whole objects, for performance
         # For 10k scale, fetching one column is fine; do in DB via window? We'll do Python median on sorted list for accuracy and speed.
-        salaries = list(qs.order_by("salary__net_in_hand").values_list("salary__net_in_hand", flat=True))
+        salaries = list(
+            qs.order_by("salary__net_in_hand").values_list("salary__net_in_hand", flat=True)
+        )
         median = None
         p25 = p75 = None
         if salaries:
@@ -212,10 +259,11 @@ class AnalyticsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                 median = (salaries[mid - 1] + salaries[mid]) / Decimal("2")
             # percentiles
             import math
+
             def percentile(arr, p):
                 if not arr:
                     return None
-                k = (len(arr)-1) * p / 100
+                k = (len(arr) - 1) * p / 100
                 f = math.floor(k)
                 c = math.ceil(k)
                 if f == c:
@@ -223,34 +271,66 @@ class AnalyticsViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                 d0 = arr[int(f)] * Decimal(str(c - k))
                 d1 = arr[int(c)] * Decimal(str(k - f))
                 return d0 + d1
+
             p25 = percentile(salaries, 25)
             p75 = percentile(salaries, 75)
 
         # breakdowns
-        by_country = list(qs.values("country").annotate(count=Count("id"), avg=Avg("salary__net_in_hand"), min=Min("salary__net_in_hand"), max=Max("salary__net_in_hand")).order_by("-avg")[:20])
-        by_department = list(qs.values("department__name", "department__code").annotate(count=Count("id"), avg=Avg("salary__net_in_hand"), min=Min("salary__net_in_hand"), max=Max("salary__net_in_hand")).order_by("-avg"))
-        by_title = list(qs.values("job_title").annotate(count=Count("id"), avg=Avg("salary__net_in_hand"), min=Min("salary__net_in_hand"), max=Max("salary__net_in_hand")).order_by("-avg")[:20])
+        by_country = list(
+            qs.values("country")
+            .annotate(
+                count=Count("id"),
+                avg=Avg("salary__net_in_hand"),
+                min=Min("salary__net_in_hand"),
+                max=Max("salary__net_in_hand"),
+            )
+            .order_by("-avg")[:20]
+        )
+        by_department = list(
+            qs.values("department__name", "department__code")
+            .annotate(
+                count=Count("id"),
+                avg=Avg("salary__net_in_hand"),
+                min=Min("salary__net_in_hand"),
+                max=Max("salary__net_in_hand"),
+            )
+            .order_by("-avg")
+        )
+        by_title = list(
+            qs.values("job_title")
+            .annotate(
+                count=Count("id"),
+                avg=Avg("salary__net_in_hand"),
+                min=Min("salary__net_in_hand"),
+                max=Max("salary__net_in_hand"),
+            )
+            .order_by("-avg")[:20]
+        )
 
         # also handle specific question: avg for given job title in country
         specific_avg = None
         if country and job_title:
-            specific_avg = qs.filter(country__iexact=country, job_title__iexact=job_title).aggregate(avg=Avg("salary__net_in_hand"))["avg"]
+            specific_avg = qs.filter(
+                country__iexact=country, job_title__iexact=job_title
+            ).aggregate(avg=Avg("salary__net_in_hand"))["avg"]
 
-        return Response({
-            "filters": {"country": country, "job_title": job_title, "department": department},
-            "overall": {
-                "count": agg["count"],
-                "avg_net": agg["avg_salary"],
-                "min_net": agg["min_salary"],
-                "max_net": agg["max_salary"],
-                "avg_gross": agg["avg_gross"],
-                "median_net": median,
-                "p25": p25,
-                "p75": p75,
-                "total_payroll": total,
-                "specific_avg_job_country": specific_avg,
-            },
-            "by_country": by_country,
-            "by_department": by_department,
-            "by_job_title": by_title,
-        })
+        return Response(
+            {
+                "filters": {"country": country, "job_title": job_title, "department": department},
+                "overall": {
+                    "count": agg["count"],
+                    "avg_net": agg["avg_salary"],
+                    "min_net": agg["min_salary"],
+                    "max_net": agg["max_salary"],
+                    "avg_gross": agg["avg_gross"],
+                    "median_net": median,
+                    "p25": p25,
+                    "p75": p75,
+                    "total_payroll": total,
+                    "specific_avg_job_country": specific_avg,
+                },
+                "by_country": by_country,
+                "by_department": by_department,
+                "by_job_title": by_title,
+            }
+        )

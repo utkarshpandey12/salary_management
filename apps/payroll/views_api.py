@@ -1,19 +1,18 @@
 from datetime import date
-from calendar import monthrange
 from decimal import Decimal
+
 from django.utils import timezone
-from django.db.models import Sum, Q
-from rest_framework import viewsets, mixins, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from apps.accounts.permissions import IsHR
-from apps.employees.models import Employee
-from apps.reimbursements.models import Reimbursement
+
 from .models import PayrollExport
 from .serializers import PayrollExportSerializer
-from .tasks import get_payroll_rows, generate_payroll_export
+from .tasks import generate_payroll_export, get_payroll_rows
+
 
 class PayrollDataView(APIView):
     permission_classes = [IsAuthenticated, IsHR]
@@ -49,21 +48,28 @@ class PayrollDataView(APIView):
         total_reimb = sum((r["reimbursement_amount"] for r in rows), Decimal("0"))
         total_all = sum((r["total_amount"] for r in rows), Decimal("0"))
 
-        return Response({
-            "month": month_date.isoformat(),
-            "count": total,
-            "page": page,
-            "page_size": page_size,
-            "totals": {
-                "salary_amount": total_salary,
-                "reimbursement_amount": total_reimb,
-                "total_amount": total_all,
-            },
-            "results": paged,
-        })
+        return Response(
+            {
+                "month": month_date.isoformat(),
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "totals": {
+                    "salary_amount": total_salary,
+                    "reimbursement_amount": total_reimb,
+                    "total_amount": total_all,
+                },
+                "results": paged,
+            }
+        )
 
 
-class PayrollExportViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+class PayrollExportViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = PayrollExport.objects.select_related("requested_by").order_by("-created_at")
     serializer_class = PayrollExportSerializer
     permission_classes = [IsAuthenticated, IsHR]
@@ -76,7 +82,9 @@ class PayrollExportViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mix
     def perform_create(self, serializer):
         month = serializer.validated_data["month"]
         fmt = serializer.validated_data["format"]
-        export = serializer.save(requested_by=self.request.user, month=month.replace(day=1), format=fmt)
+        export = serializer.save(
+            requested_by=self.request.user, month=month.replace(day=1), format=fmt
+        )
         # trigger celery task
         # Use eager fallback if broker not available: the task will run synchronously due to CELERY_TASK_ALWAYS_EAGER
         try:
