@@ -1,0 +1,39 @@
+[project]
+name = "salary-management"
+version = "0.1.0"
+description = "HR Salary Management — Django + DRF + HTMX for 10k employees"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Django>=5.0,<6.0",
+    "djangorestframework>=3.15",
+    "django-htmx>=1.18",
+    "celery>=5.4",
+    "redis>=5.0",
+    "boto3>=1.35",
+    "django-storages[s3]>=1.14",
+    "openpyxl>=3.1",
+    "reportlab>=4.2",
+    "Pillow>=11.0",
+    "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "factory-boy>=3.3",
+    "coverage>=7.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.hatch.build.targets.wheel]
+packages = ["config", "apps"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
