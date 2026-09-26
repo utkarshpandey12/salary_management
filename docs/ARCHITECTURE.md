@@ -107,8 +107,19 @@ manage.py, pyproject.toml (uv), db.sqlite3, media/
 
 ## 7. Background Jobs (Celery)
 
-- `CELERY_TASK_ALWAYS_EAGER=1` default so project runs without Redis. With `REDIS_URL` set, tasks run async.
-- `generate_payroll_export(export_id)`: fetches `PayrollExport`, sets PROCESSING, calls `get_payroll_rows(month)`, then writes Excel (openpyxl: headers, auto-filter, freeze, col width) or PDF (ReportLab platypus Table with styled header, alternating rows, totals). Saves via `ContentFile` to `DEFAULT_FILE_STORAGE` (MinIO if `USE_MINIO=1` else `MEDIA_ROOT`).
+- **Eager by default:** `config/settings.py:113` `CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_ALWAYS_EAGER","1")=="1"` — no Redis needed, `generate_payroll_export.delay()` runs inline in the web request and the export appears `COMPLETED` immediately. This is why the Excel/PDF you generated appeared even though the `payroll` worker showed no task.
+- **Async mode:** set `CELERY_ALWAYS_EAGER=0` **for both the web server and the worker** and point to the same broker (`CELERY_BROKER_URL=redis://localhost:6379/0`):
+  ```bash
+  # terminal 1 — web
+  CELERY_ALWAYS_EAGER=0 CELERY_BROKER_URL=redis://localhost:6379/0 uv run python manage.py runserver
+  # terminal 2 — worker (queue=payroll per CELERY_TASK_ROUTES)
+  CELERY_ALWAYS_EAGER=0 CELERY_BROKER_URL=redis://localhost:6379/0 uv run celery -A config worker -l info -Q payroll -n payroll@%h --concurrency=4 --pool=solo
+  # test: curl POST /api/payroll/exports/ → worker log shows "Task apps.payroll.tasks.generate_payroll_export[xxx] received" + "succeeded"
+  ```
+  If only the worker has `CELERY_ALWAYS_EAGER=0` but the web still uses the default `1`, the web will still run eager and not publish to Redis — hence the worker stays idle (your `16:05:34 ready` but no `received`). Always export `CELERY_ALWAYS_EAGER=0` in `.env` or in the `docker run -e` for both containers; `entrypoint.sh` handles this by starting `celery -A config worker -Q payroll` in background only when `CELERY_ALWAYS_EAGER=0`.
+- **Routing:** `config/settings.py:116` `CELERY_TASK_ROUTES = {"apps.payroll.tasks.generate_payroll_export": {"queue": "payroll"}}` — worker must listen to `payroll` (shown as `exchange=payroll(direct) key=payroll` in your log). Default queue `celery` will not receive these tasks.
+- **Task:** `apps/payroll/tasks.py:26` `generate_payroll_export(export_id)`: `PENDING→PROCESSING` (sets `celery_task_id`), `get_payroll_rows(month)` (single `Sum` per employee), writes Excel (`openpyxl` auto-filter/freeze) or PDF (`ReportLab` platypus table), `ContentFile` to `DEFAULT_FILE_STORAGE` (MinIO `payroll_exports/` or `media/`), `COMPLETED`/`FAILED` with `error` traceback. Verified via `pytest` eager + manual `inspect active`.
+- **Troubleshooting:** `CELERY_BROKER_URL` mismatch, `CELERY_ALWAYS_EAGER` mismatch, or running worker without `-Q payroll` → no `received`. Check `celery -A config inspect ping` and `redis-cli ping`.
 
 ## 8. Storage (MinIO)
 
@@ -116,18 +127,52 @@ manage.py, pyproject.toml (uv), db.sqlite3, media/
 
 ## 9. Testing Strategy
 
-- **pytest + pytest-django**, DB per test (transaction rollback), 28 tests in 6s.
-- Models: salary recompute, tax fallback, full_name, constraints.
-- API: HR vs employee permissions (create, salary visibility, update whitelist, department filter, search by ID, analytics auth).
-- Reimbursements: employee create pending, visibility scope, HR approve/reject, double-approve guard, employee cannot approve.
-- Payroll: rows sum, approved vs pending, HR gate, export eager completes, salary edit recomputes total, inactive excluded.
-- No mocks for DB — real SQLite queries ensure ORM optimization is tested; no network calls.
+- **pytest + pytest-django + pytest-cov**, DB per test (transaction rollback), **299 tests in ~8s, 77% coverage** (fail_under 75).
+- Tests live **inside each app** (`apps/*/tests/`) — business-rule focused, not just 200 OK:
+  - `accounts` (56): `User.is_hr`, `IsHR/IsOwnerOrHR`, `me` API, login/logout, HR vs EMP
+  - `employees` (141): `Department` uniqueness/count, `Employee.full_name`/`employee_id` regex, manager FK, `Salary.recompute` (gross/tax/net per country, `employee_cannot_access_other_employees_salary` via `to_representation`, `hr_only_can_edit_employee_salary` whitelist `phone/address/city`, `department_salary_hidden_for_employee`, all 10k managers mapped, manager clickable)
+  - `reimbursements` (47): `amount>0`, `status` machine `PENDING→APPROVED/REJECTED`, `pending_cannot_be_double_approved`, employee sees only own / HR sees all, `employee_cannot_approve`, receipt `upload_to`
+  - `payroll` (48): `get_payroll_rows` (`salary+approved_reimbursement`, inactive excluded, month filter), `payroll_total_equals_salary_plus_approved`, `HR_only_can_export`, Excel/PDF via eager `payroll` queue, pagination
+- No mocks for DB — real SQLite queries ensure ORM optimization is tested; no network. Deterministic (`seed 42`).
 
-## 10. What We Deliberately Left Out (see REQUIREMENTS.md) and Future Hooks
+## 10. Code Quality & Pre-commit
+
+- **Ruff** (`tool.ruff` 100 chars, `E,F,I,B,C4,UP,W` ignore `E501,B011,B904,E702,F841,E741,E722`) + `ruff-format` — `uv run ruff check . --fix` / `uv run ruff format .`
+- **Pre-commit** `.pre-commit-config.yaml` — `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `ruff --fix` + `ruff-format` (exclude `migrations/`), `mypy` (`--disable-error-code var-annotated/attr-defined`, `django-stubs`)
+- Local: `uv run pre-commit install && uv run pre-commit run --all-files`
+
+## 11. CI/CD & Automation
+
+### CI — `.github/workflows/ci.yaml`
+Triggers `push/PR` to `main`. **lint → test** (needs lint):
+- `lint`: `uv sync --group dev`, `ruff check`, `ruff format --check`, `pre-commit run --all-files`
+- `test`: services `redis:7-alpine`, `migrate`, `pytest --cov=apps --cov-report=xml --cov-report=html -v`, `coverage report --fail-under=70`, upload `coverage.xml`/`htmlcov` artifacts (optional `codecov`).
+- Concurrency `ci-${{github.ref}}` cancel-in-progress, `uv` cache via `setup-uv`.
+
+Local mimic: `uv run ruff check . && uv run ruff format --check . && uv run pre-commit run --all-files && uv run pytest --cov=apps --cov-report=term-missing`
+
+### Build & Release — `.github/workflows/build.yaml`
+Triggers `push` `main`/`tags v*` / `workflow_dispatch`. `setup-qemu`, `setup-buildx`, `login GHCR`, `docker/metadata-action` (tags `branch/semver/sha/latest`), `docker/build-push-action` (`cache-from/to gha`, `linux/amd64,arm64`), pushes to `ghcr.io/<owner>/salary_management`, prints `digest`/`tags` to logs + `$GITHUB_STEP_SUMMARY`, creates GitHub Release on `v*` via `softprops/action-gh-release`.
+
+### Docker — Lean Multi-Stage + Caching
+- **Builder** `ghcr.io/astral-sh/uv:python3.12-bookworm` — `COPY pyproject.toml uv.lock` → `uv sync --frozen --no-dev` (cached), then `COPY` source → `uv sync --frozen --no-dev` (`UV_LINK_MODE=copy`, `UV_COMPILE_BYTECODE=1`, BuildKit `cache` mount `/root/.cache/uv`).
+- **Runtime** `python:3.12-slim-bookworm` — only `curl/ca-certificates`, `user app` non-root, `COPY --from=builder .venv` + source, `EXPOSE 8000`, `HEALTHCHECK` `curl /accounts/login/`, `ENTRYPOINT ["./entrypoint.sh"]`, `CMD ["server"]`.
+- `.dockerignore` excludes `db.sqlite3, media, .venv, htmlcov, .git` for lean context. No `docker-compose.yml` per spec.
+- `entrypoint.sh` — `migrate`, auto-seed if `Employee.count==0` (`AUTO_SEED`, `SEED_COUNT`), `collectstatic` when `DJANGO_DEBUG=0`, then `server` (if `CELERY_ALWAYS_EAGER=0` starts `celery -A config worker -Q payroll` background + `gunicorn` else `runserver`), `celery` (worker only), `bash` passthrough. Trap `SIGTERM`.
+- `build.sh` — `docker buildx build --cache-from/to gha --platform linux/amd64 --tag … --load --push`, prints `Image ID`, `Digest`, `Size`, `SHA`, run examples, `GITHUB_OUTPUT`.
+
+```
+./build.sh [tag]                         # default salary-management:local
+PUSH=1 ./build.sh ghcr.io/OWNER/salary_management:latest --push
+docker run -p 8000:8000 -e DJANGO_SECRET_KEY=dev-secret salary-management:local
+docker run -p 8000:8000 -e CELERY_ALWAYS_EAGER=0 -e CELERY_BROKER_URL=redis://host.docker.internal:6379/0 salary-management:local
+```
+
+## 12. What We Deliberately Left Out (see REQUIREMENTS.md) and Future Hooks
 
 - SPA, multi-currency, leave/attendance, salary history, notifications, SSO — architecture has seam for each (e.g., `django-simple-history` for history, `dj-rest-auth` for SSO, `fx-service` for currency).
 
-## 11. Diagrams
+## 13. Diagrams
 
 ### Data Flow (Payroll Export)
 
