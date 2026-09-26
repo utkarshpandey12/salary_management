@@ -18,11 +18,17 @@
         </div>
         <h3 class="font-semibold text-slate-900">{{ d.name }}</h3>
         <p class="text-xs text-slate-500 mt-1">{{ d.description|default:"Team" }}</p>
+        {% if is_hr %}
         <div class="mt-4 grid grid-cols-3 gap-3 text-center">
             <div><div class="text-lg font-bold">{{ d.count|intcomma }}</div><div class="text-xs text-slate-500">Members</div></div>
-            <div><div class="text-sm font-bold">{% if d.avg_sal %}₹ {{ d.avg_sal|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500">Avg</div></div>
+            <div><div class="text-sm font-bold">{% if d.avg_sal %}₹ {{ d.avg_sal|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500">Avg net</div></div>
             <div><div class="text-sm font-semibold">{% if d.max_sal %}₹ {{ d.max_sal|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500">Max</div></div>
         </div>
+        {% else %}
+        <div class="mt-4 text-center">
+            <div class="text-lg font-bold">{{ d.count|intcomma }}</div><div class="text-xs text-slate-500">Members</div>
+        </div>
+        {% endif %}
     </a>
     {% endfor %}
 </div>

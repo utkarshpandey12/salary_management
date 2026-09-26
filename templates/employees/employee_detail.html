@@ -95,13 +95,7 @@
                 <div class="text-xs text-slate-500">Tax computed via progressive brackets for {{ employee.country }}. Editing any component recomputes totals.</div>
             </div>
         </div>
-        {% elif not can_view_salary %}
-        <div class="bg-white rounded-xl border border-slate-200 p-6 text-center">
-            <i class="fa-solid fa-lock text-slate-400 text-2xl mb-2"></i>
-            <div class="font-medium text-slate-900">Salary hidden</div>
-            <div class="text-sm text-slate-500 mt-1">Only HR and the employee can view salary details.</div>
-        </div>
-        {% else %}
+        {% elif can_view_salary %}
         <div class="bg-white rounded-xl border border-slate-200 p-6">
             <div class="text-sm text-slate-600">No salary structure yet.</div>
             {% if is_hr %}

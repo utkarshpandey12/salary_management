@@ -214,7 +214,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Bulk created {len(salaries)} salary structures"))
 
-        # Assign managers randomly within same department (5% managers) — optimized pure-python, no per-row DB hits
+        # Assign managers — ensures every employee has a manager (same-dept preferred, self-excluded), optimized pure-python
         try:
             from collections import defaultdict
             all_emps = list(Employee.objects.values("id", "department_id"))
@@ -224,27 +224,27 @@ class Command(BaseCommand):
             manager_by_dept = {}
             manager_pool = []
             for dept_id, ids in dept_groups.items():
-                n_mgr = max(2, len(ids) // 20)  # ~5%
+                n_mgr = max(2, len(ids) // 20)  # ~5% managers per dept
                 mgrs = ids[:n_mgr]
                 manager_by_dept[dept_id] = mgrs
                 manager_pool.extend(mgrs)
-            manager_pool_set = set(manager_pool)
-            # Build updates in-memory
             to_update = []
-            # Use values iterator to avoid loading full objects for assignment
-            for row in Employee.objects.exclude(id__in=manager_pool_set).values("id", "department_id"):
-                if random.random() < 0.8:
-                    dept = row["department_id"]
-                    same = manager_by_dept.get(dept, [])
-                    chosen = random.choice(same) if same else random.choice(manager_pool)
-                    # bulk_update needs model instances with pk
-                    to_update.append(Employee(id=row["id"], manager_id=chosen))
-                    if len(to_update) >= 1000:
-                        Employee.objects.bulk_update(to_update, ["manager_id"], batch_size=1000)
-                        to_update = []
+            for row in Employee.objects.values("id", "department_id"):
+                emp_id = row["id"]
+                dept = row["department_id"]
+                # Prefer same-dept manager, exclude self
+                same = [m for m in manager_by_dept.get(dept, []) if m != emp_id]
+                candidates = same if same else [m for m in manager_pool if m != emp_id]
+                if not candidates:
+                    continue  # single employee edge case
+                chosen = random.choice(candidates)
+                to_update.append(Employee(id=emp_id, manager_id=chosen))
+                if len(to_update) >= 1000:
+                    Employee.objects.bulk_update(to_update, ["manager_id"], batch_size=1000)
+                    to_update = []
             if to_update:
                 Employee.objects.bulk_update(to_update, ["manager_id"], batch_size=1000)
-            self.stdout.write(self.style.SUCCESS(f"Assigned managers to {Employee.objects.filter(manager__isnull=False).count()} employees"))
+            self.stdout.write(self.style.SUCCESS(f"Assigned managers to {Employee.objects.filter(manager__isnull=False).count()} employees (all mapped)"))
         except Exception as e:
             import traceback
             self.stdout.write(self.style.WARNING(f"Manager assignment skipped: {e}\n{traceback.format_exc()}"))
