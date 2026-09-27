@@ -139,27 +139,15 @@ class Employee(models.Model):
 
     def clean(self):
         super().clean()
-        if self.manager_id and self.pk and self.manager_id == self.pk:
-            from django.core.exceptions import ValidationError as DjangoValidationError
+        if self.manager_id:
+            # deferred import keeps models lean; logic lives in validators for sonar reuse
+            from .validators import validate_manager_assignment
 
-            raise DjangoValidationError({"manager": "Employee cannot be their own manager."})
-        if self.manager_id and self.pk:
-            # walk chain to detect cycles, cap depth for safety
-            seen = {self.pk}
-            current_id = self.manager_id
-            for _ in range(50):
-                if current_id in seen:
-                    from django.core.exceptions import ValidationError as DjangoValidationError
-
-                    raise DjangoValidationError({"manager": "Manager assignment would create a cycle."})
-                seen.add(current_id)
-                try:
-                    current = Employee.objects.only("manager_id").get(pk=current_id)
-                except Employee.DoesNotExist:
-                    break
-                if not current.manager_id:
-                    break
-                current_id = current.manager_id
+            try:
+                manager = self.manager
+            except Employee.DoesNotExist:
+                return  # let FK validation handle invalid id
+            validate_manager_assignment(self, manager)
 
     def save(self, *args, **kwargs):
         self.full_name = f"{self.first_name} {self.last_name}".strip()

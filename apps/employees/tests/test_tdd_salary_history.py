@@ -1,6 +1,6 @@
-import pytest
 from decimal import Decimal
 
+import pytest
 from django.contrib.auth import get_user_model
 
 from apps.employees.models import Department, Employee, SalaryStructure

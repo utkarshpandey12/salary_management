@@ -1,7 +1,7 @@
-import pytest
 from datetime import timedelta
 from decimal import Decimal
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils import timezone
