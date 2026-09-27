@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-json
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: ^(apps/.*/migrations/|.*/__pycache__/.*)
+        types: [python]
+      - id: ruff-format
+        exclude: ^(apps/.*/migrations/|.*/__pycache__/.*)
+        types: [python]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies: [django-stubs, djangorestframework-stubs]
+        args: [--ignore-missing-imports, --disable-error-code, var-annotated, --disable-error-code, attr-defined, --disable-error-code, arg-type, --disable-error-code, operator]
+        exclude: ^(apps/.*/migrations/|tests/)
+
+# Run: uv run pre-commit install && uv run pre-commit run --all-files
