@@ -1,5 +1,115 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block title %}Analytics — ACME Pay{% endblock %}
 {% block content %}
-<h1>Analytics</h1>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900"><i class="fa-solid fa-chart-line mr-2 text-indigo-600"></i> Salary Analytics</h1>
+        <p class="text-sm text-slate-500">Insights for HR — filter to answer "how we pay"</p>
+    </div>
+    <div class="text-xs bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-indigo-800">
+        <i class="fa-solid fa-circle-info mr-1"></i> Try: Country=India + Job Title + Department
+    </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Country</label>
+            <select name="country" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">All countries</option>
+                {% for c in countries %}
+                <option value="{{ c }}" {% if country == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Job Title</label>
+            <select name="job_title" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">All titles</option>
+                {% for j in job_titles %}
+                <option value="{{ j }}" {% if job_title == j %}selected{% endif %}>{{ j }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Department</label>
+            <select name="department" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">All departments</option>
+                {% for d in departments %}
+                <option value="{{ d.id }}" {% if department == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="flex-1 bg-indigo-600 text-white text-sm rounded-lg px-4 py-2 hover:bg-indigo-700">Apply</button>
+            <a href="{% url 'analytics' %}" class="px-3 py-2 text-sm text-slate-600">Clear</a>
+        </div>
+        <div class="flex items-end">
+            <div class="text-xs text-slate-500">API: <a href="/api/employees/analytics/?country={{ country }}&job_title={{ job_title }}&department={{ department }}" class="text-indigo-600 hover:underline font-mono">/api/employees/analytics/</a></div>
+        </div>
+    </form>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-xs text-slate-500 uppercase">Count</div><div class="text-2xl font-bold">{{ agg.count|intcomma }}</div><div class="text-xs text-slate-500">filtered</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-xs text-slate-500 uppercase">Avg net</div><div class="text-lg font-bold">{% if agg.avg %}₹ {{ agg.avg|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-xs text-slate-500 uppercase">Median</div><div class="text-lg font-bold">{% if median %}₹ {{ median|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-xs text-slate-500 uppercase">p25 / p75</div><div class="text-sm font-semibold">{% if p25 %}₹ {{ p25|floatformat:0|intcomma }} / ₹ {{ p75|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-xs text-slate-500 uppercase">Min — Max</div><div class="text-xs font-semibold">{% if agg.min %}₹ {{ agg.min|floatformat:0|intcomma }} → ₹ {{ agg.max|floatformat:0|intcomma }}{% else %}—{% endif %}</div></div>
+    <div class="bg-slate-900 text-white rounded-xl p-4 text-center"><div class="text-xs uppercase opacity-70">Total payroll</div><div class="text-lg font-bold">₹ {{ total|floatformat:0|intcomma }}</div><div class="text-xs opacity-70">monthly</div></div>
+</div>
+
+{% if specific_avg %}
+<div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+    <div><div class="text-sm font-semibold text-green-800">Specific query</div><div class="text-xs text-green-700">Avg for <strong>{{ job_title }}</strong> in <strong>{{ country }}</strong></div></div>
+    <div class="text-xl font-bold text-green-800">₹ {{ specific_avg|floatformat:0|intcomma }}</div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 class="font-semibold text-slate-900 mb-3">By Country</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase"><tr><th class="text-left py-2">Country</th><th class="text-right py-2">Count</th><th class="text-right py-2">Avg</th><th class="text-right py-2">Max</th></tr></thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in by_country %}
+                    <tr><td class="py-2 font-medium">{{ row.country }}</td><td class="text-right py-2">{{ row.count }}</td><td class="text-right py-2">₹ {{ row.avg|floatformat:0|intcomma }}</td><td class="text-right py-2 text-slate-500">₹ {{ row.max|floatformat:0|intcomma }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 class="font-semibold text-slate-900 mb-3">By Department</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase"><tr><th class="text-left py-2">Dept</th><th class="text-right py-2">Count</th><th class="text-right py-2">Avg</th></tr></thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in by_dept %}
+                    <tr><td class="py-2 font-medium">{{ row.department__name }}</td><td class="text-right py-2">{{ row.count }}</td><td class="text-right py-2">₹ {{ row.avg|floatformat:0|intcomma }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 class="font-semibold text-slate-900 mb-3">By Job Title (top 20)</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 uppercase"><tr><th class="text-left py-2">Title</th><th class="text-right py-2">Avg</th><th class="text-right py-2">Count</th></tr></thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in by_title %}
+                    <tr><td class="py-2 font-medium truncate max-w-[150px]">{{ row.job_title }}</td><td class="text-right py-2">₹ {{ row.avg|floatformat:0|intcomma }}</td><td class="text-right py-2 text-slate-500">{{ row.count }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-6 bg-white border rounded-xl p-4 text-xs text-slate-600">
+    All aggregates computed in-DB via <code class="bg-slate-100 px-1 rounded">Avg / Min / Max / Count</code> and median via ordered column fetch — no full table load in Python loops. Use API for raw JSON.
+</div>
 {% endblock %}

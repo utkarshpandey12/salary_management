@@ -1,8 +1,35 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block title %}Departments — ACME Pay{% endblock %}
 {% block content %}
-<h1>Departments</h1>
-{% for d in departments %}
-<div>{{ d.name }} Members {{ d.count }}{% if is_hr %} Avg net {{ d.avg_sal }}{% endif %}</div>
-{% endfor %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Departments</h1>
+        <p class="text-sm text-slate-500">Browse employees by team — click a team to view members</p>
+    </div>
+    <a href="{% url 'employee-list' %}" class="text-sm bg-white border rounded-lg px-4 py-2">All employees →</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for d in departments %}
+    <a href="{% url 'department-detail' d.pk %}" class="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md hover:border-indigo-200 transition">
+        <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600"><i class="fa-solid fa-users"></i></div>
+            <span class="text-xs font-mono bg-slate-100 border rounded-full px-2.5 py-1">{{ d.code }}</span>
+        </div>
+        <h3 class="font-semibold text-slate-900">{{ d.name }}</h3>
+        <p class="text-xs text-slate-500 mt-1">{{ d.description|default:"Team" }}</p>
+        {% if is_hr %}
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+            <div><div class="text-lg font-bold">{{ d.count|intcomma }}</div><div class="text-xs text-slate-500">Members</div></div>
+            <div><div class="text-sm font-bold">{% if d.avg_sal %}₹ {{ d.avg_sal|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500">Avg net</div></div>
+            <div><div class="text-sm font-semibold">{% if d.max_sal %}₹ {{ d.max_sal|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500">Max</div></div>
+        </div>
+        {% else %}
+        <div class="mt-4 text-center">
+            <div class="text-lg font-bold">{{ d.count|intcomma }}</div><div class="text-xs text-slate-500">Members</div>
+        </div>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
 {% endblock %}

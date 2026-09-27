@@ -3,10 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ACME Pay{% endblock %}</title>
-    <!-- TDD: full Tailwind + HTMX shell lands in template steps -->
+    <title>{% block title %}ACME Salary Manager{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .htmx-indicator { display:none; }
+        .htmx-request .htmx-indicator { display:inline-block; }
+        .htmx-request.htmx-indicator { display:inline-block; }
+    </style>
+    <!-- CSRF for HTMX -->
+    <script>
+        document.body.addEventListener('htmx:configRequest', (e) => {
+            e.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+    </script>
 </head>
-<body>
-    <main>{% block content %}{% endblock %}</main>
+<body class="bg-slate-50 text-slate-800" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    {% if not hide_nav %}
+    <!-- Top Nav -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-8">
+                    <a href="{% url 'dashboard' %}" class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                            <i class="fa-solid fa-building-columns text-white text-sm"></i>
+                        </div>
+                        <span class="font-bold text-slate-900">ACME <span class="font-light">Pay</span></span>
+                        <span class="text-xs bg-slate-100 px-2 py-1 rounded-full text-slate-600">HR Suite</span>
+                    </a>
+                    <div class="hidden md:flex items-center gap-1">
+                        <a href="{% url 'dashboard' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}">Dashboard</a>
+                        <a href="{% url 'employee-list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if 'employee' in request.resolver_match.url_name %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}"><i class="fa-solid fa-users mr-1"></i> Employees</a>
+                        <a href="{% url 'department-list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if 'department' in request.resolver_match.url_name %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}">Departments</a>
+                        {% if request.user.is_hr %}
+                        <a href="{% url 'analytics' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if request.resolver_match.url_name == 'analytics' %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}"><i class="fa-solid fa-chart-line mr-1"></i> Analytics</a>
+                        <a href="{% url 'payroll' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if 'payroll' in request.resolver_match.url_name %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}"><i class="fa-solid fa-file-invoice-dollar mr-1"></i> Payroll</a>
+                        <a href="{% url 'reimbursement-list' %}" class="px-3 py-2 rounded-lg text-sm font-medium {% if 'reimbursement' in request.resolver_match.url_name %}bg-indigo-50 text-indigo-700{% else %}text-slate-600 hover:bg-slate-100{% endif %}"><i class="fa-solid fa-receipt mr-1"></i> Reimbursements</a>
+                        {% else %}
+                        <a href="{% url 'reimbursement-list' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100"><i class="fa-solid fa-receipt mr-1"></i> My Reimbursements</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="hidden sm:flex items-center gap-3">
+                        <div class="text-right">
+                            <div class="text-sm font-medium text-slate-900">{{ request.user.username }}</div>
+                            <div class="text-xs text-slate-500">{% if request.user.is_hr %}HR Manager{% else %}Employee{% endif %} • {{ request.user.email }}</div>
+                        </div>
+                        <div class="w-9 h-9 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                            {{ request.user.username|slice:":2"|upper }}
+                        </div>
+                    </div>
+                    <a href="{% url 'logout' %}" class="text-slate-500 hover:text-slate-700 p-2"><i class="fa-solid fa-right-from-bracket"></i></a>
+                    <!-- mobile menu -->
+                    <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="md:hidden p-2 text-slate-600"><i class="fa-solid fa-bars"></i></button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden border-t bg-white px-4 py-3 space-y-1">
+            <a href="{% url 'dashboard' %}" class="block px-3 py-2 rounded-lg text-sm">Dashboard</a>
+            <a href="{% url 'employee-list' %}" class="block px-3 py-2 rounded-lg text-sm">Employees</a>
+            <a href="{% url 'department-list' %}" class="block px-3 py-2 rounded-lg text-sm">Departments</a>
+            {% if request.user.is_hr %}
+            <a href="{% url 'analytics' %}" class="block px-3 py-2 rounded-lg text-sm">Analytics</a>
+            <a href="{% url 'payroll' %}" class="block px-3 py-2 rounded-lg text-sm">Payroll</a>
+            {% endif %}
+            <a href="{% url 'reimbursement-list' %}" class="block px-3 py-2 rounded-lg text-sm">Reimbursements</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 space-y-2">
+        {% for message in messages %}
+        <div class="px-4 py-3 rounded-lg text-sm flex justify-between items-center {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% elif message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200{% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border border-amber-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+            <span><i class="fa-solid fa-circle-info mr-2"></i>{{ message }}</span>
+            <button onclick="this.parentElement.remove()" class="ml-4 text-current opacity-60 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="mt-12 border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+        ACME Pay — HR Salary Management • 10,000 employees • Built with Django + HTMX + DRF • <span class="font-mono">10k seed</span>
+    </footer>
 </body>
 </html>

@@ -1,27 +1,61 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block title %}{{ department.name }} — ACME Pay{% endblock %}
 {% block content %}
-<h1>{{ department.name }}</h1>
+<div class="mb-6">
+    <a href="{% url 'department-list' %}" class="text-sm text-slate-600 hover:text-slate-900"><i class="fa-solid fa-arrow-left mr-2"></i> All departments</a>
+    <div class="flex items-center gap-3 mt-3">
+        <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i class="fa-solid fa-building"></i></div>
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">{{ department.name }} <span class="text-sm font-mono bg-slate-100 border rounded-full px-2 py-1">{{ department.code }}</span></h1>
+            <p class="text-sm text-slate-500">{{ department.description }}</p>
+        </div>
+    </div>
+</div>
+
 {% if is_hr %}
-<p>Avg net {{ stats.avg }}</p>
-<p>Median {{ median }}</p>
-<table>
-    <thead><tr><th>Employee</th><th>Net</th></tr></thead>
-    <tbody>
-        {% for e in employees %}
-        <tr><td>{{ e.full_name }}</td><td>{{ e.salary.net_in_hand }}</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-2xl font-bold">{{ stats.count|intcomma }}</div><div class="text-xs text-slate-500 uppercase">Members</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-lg font-bold">{% if stats.avg %}₹ {{ stats.avg|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500 uppercase">Avg net</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-lg font-bold">{% if median %}₹ {{ median|floatformat:0|intcomma }}{% else %}—{% endif %}</div><div class="text-xs text-slate-500 uppercase">Median</div></div>
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-sm font-semibold">{% if stats.min %}₹ {{ stats.min|floatformat:0|intcomma }} — {% if stats.max %}₹ {{ stats.max|floatformat:0|intcomma }}{% endif %}{% else %}—{% endif %}</div><div class="text-xs text-slate-500 uppercase">Range (min–max)</div></div>
+</div>
 {% else %}
-<p>Members {{ stats.count }}</p>
-<p>Salary details are confidential</p>
-<table>
-    <tbody>
-        {% for e in employees %}
-        <tr><td>{{ e.full_name }}</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="grid grid-cols-1 gap-4 mb-6">
+    <div class="bg-white border rounded-xl p-4 text-center"><div class="text-2xl font-bold">{{ stats.count|intcomma }}</div><div class="text-xs text-slate-500 uppercase">Members</div><div class="text-xs text-slate-500 mt-1">Salary details are confidential</div></div>
+</div>
 {% endif %}
+
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="p-4 border-b flex items-center justify-between">
+        <h2 class="font-semibold text-slate-900">Members of {{ department.name }}</h2>
+        <span class="text-xs text-slate-500">{{ stats.count|intcomma }} total • click name for details</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+                <tr><th class="text-left px-4 py-3">Employee</th><th class="text-left px-4 py-3">Job Title</th><th class="text-left px-4 py-3">Country</th>{% if is_hr %}<th class="text-right px-4 py-3">Net</th>{% endif %}</tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for e in employees %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3"><a href="{% url 'employee-detail' e.employee_id %}" class="font-medium text-indigo-600 hover:underline">{{ e.employee_id }}</a><div class="font-medium">{{ e.full_name }}</div><div class="text-xs text-slate-500">{{ e.email }}</div></td>
+                    <td class="px-4 py-3">{{ e.job_title }}</td>
+                    <td class="px-4 py-3">{{ e.country }}</td>
+                    {% if is_hr %}<td class="px-4 py-3 text-right">{% if e.salary %}₹ {{ e.salary.net_in_hand|floatformat:0|intcomma }}{% else %}—{% endif %}</td>{% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="px-4 py-3 border-t bg-slate-50 flex items-center justify-between text-sm">
+        <span class="text-slate-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 bg-white border rounded-lg">← Prev</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1.5 bg-white border rounded-lg">Next →</a>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}
