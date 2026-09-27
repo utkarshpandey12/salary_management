@@ -137,7 +137,7 @@ class Employee(models.Model):
             models.CheckConstraint(condition=~Q(email=""), name="employee_email_not_empty"),
         ]
 
-    # TDD: manager self/cycle validation lands in the manager-improvement step.
+    # TDD: manager self/cycle clean() lands in the manager improvement step.
 
     def save(self, *args, **kwargs):
         self.full_name = f"{self.first_name} {self.last_name}".strip()
@@ -226,11 +226,40 @@ class SalaryStructure(models.Model):
         self.net_in_hand = max(net, Decimal("0.00")).quantize(Decimal("0.01"))
 
     def save(self, *args, **kwargs):
+        old = None
+        if self.pk:
+            try:
+                old = SalaryStructure.objects.select_related("employee").get(pk=self.pk)
+            except SalaryStructure.DoesNotExist:
+                old = None
         self.recompute()
         super().save(*args, **kwargs)
+        if old is not None:
+            # deferred import keeps models lean; logic lives in services for sonar-clean reuse
+            from .services import log_salary_change, salary_changed
+
+            if salary_changed(old, self):
+                log_salary_change(old, self)
 
     def __str__(self):
         return f"Salary for {self.employee_id} — Gross {self.gross_salary} Net {self.net_in_hand}"
 
 
-# TDD: SalaryHistory audit model + save hook land in the salary-history improvement step.
+class SalaryHistory(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="salary_history")
+    old_basic = models.DecimalField(max_digits=12, decimal_places=2)
+    new_basic = models.DecimalField(max_digits=12, decimal_places=2)
+    old_gross = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    new_gross = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    old_net = models.DecimalField(max_digits=12, decimal_places=2)
+    new_net = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["employee", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"History {self.employee.employee_id} {self.old_basic}->{self.new_basic} @ {self.created_at:%Y-%m-%d}"

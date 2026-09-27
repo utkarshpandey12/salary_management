@@ -1,8 +1,6 @@
 from django.contrib import admin
 
-from .models import Department, Employee, SalaryStructure, TaxBracket
-
-# TDD: SalaryHistoryAdmin lands in the salary-history improvement step.
+from .models import Department, Employee, SalaryHistory, SalaryStructure, TaxBracket
 
 
 @admin.register(Department)
@@ -30,3 +28,10 @@ class SalaryStructureAdmin(admin.ModelAdmin):
 class TaxBracketAdmin(admin.ModelAdmin):
     list_display = ("country", "lower_limit", "upper_limit", "rate")
     list_filter = ("country",)
+
+
+@admin.register(SalaryHistory)
+class SalaryHistoryAdmin(admin.ModelAdmin):
+    list_display = ("employee", "old_basic", "new_basic", "old_net", "new_net", "created_at")
+    search_fields = ("employee__employee_id", "employee__full_name")
+    readonly_fields = ("created_at",)
