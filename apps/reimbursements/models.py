@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 
-# TDD: future-date clean() lands in the reimbursement improvement step.
+from .validators import validate_not_future
 
 
 def reimbursement_upload_to(instance, filename):
@@ -56,6 +56,10 @@ class Reimbursement(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.employee.employee_id} — {self.amount} ({self.status})"
+
+    def clean(self):
+        super().clean()
+        validate_not_future(self.expense_date)
 
     @property
     def is_pending(self):

@@ -1,8 +1,7 @@
 from rest_framework import serializers
 
 from .models import Reimbursement
-
-# TDD: validate_expense_date (future-date) lands in the reimbursement improvement step.
+from .validators import validate_not_future_drf
 
 
 class ReimbursementSerializer(serializers.ModelSerializer):
@@ -42,6 +41,9 @@ class ReimbursementSerializer(serializers.ModelSerializer):
             "employee_name",
         ]
         extra_kwargs = {"employee": {"required": False, "allow_null": True}}
+
+    def validate_expense_date(self, value):
+        return validate_not_future_drf(value)
 
     def validate(self, attrs):
         # limit file size/type in API? also handled in model

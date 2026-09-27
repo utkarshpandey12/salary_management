@@ -3,8 +3,7 @@ from django import forms
 from apps.employees.models import Employee
 
 from .models import Reimbursement
-
-# TDD: clean_expense_date (future-date) lands in the reimbursement improvement step.
+from .validators import validate_not_future
 
 
 class ReimbursementForm(forms.ModelForm):
@@ -36,6 +35,14 @@ class ReimbursementForm(forms.ModelForm):
             )
             # move employee to first
             self.fields = {"employee": self.fields["employee"], **self.fields}
+
+    def clean_expense_date(self):
+        value = self.cleaned_data.get("expense_date")
+        try:
+            validate_not_future(value, field_name="")
+        except Exception:
+            raise forms.ValidationError("Expense date cannot be in the future.")
+        return value
 
     def save(self, commit=True, **kwargs):
         obj = super().save(commit=False)
