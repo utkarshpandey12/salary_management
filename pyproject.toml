@@ -43,9 +43,7 @@ source = ["apps", "config"]
 omit = ["*/migrations/*", "*/tests/*", "*/test_*.py", "*/__pycache__/*"]
 
 [tool.coverage.report]
-# TDD: skeleton has almost no code; gate starts at 0 and is raised back to 75
-# in the final full-suite step once real coverage justifies it.
-fail_under = 0
+fail_under = 75
 show_missing = true
 skip_covered = false
 
