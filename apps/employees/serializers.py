@@ -176,6 +176,30 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
+    def validate_manager(self, value):
+        instance = getattr(self, "instance", None)
+        if value is None:
+            return value
+        if instance is not None and value.pk == instance.pk:
+            raise serializers.ValidationError("Employee cannot be their own manager.")
+        if instance is not None:
+            # cycle check: walk from proposed manager up
+            seen = {instance.pk}
+            current = value
+            for _ in range(50):
+                if current.pk in seen:
+                    raise serializers.ValidationError(
+                        "Manager assignment would create a cycle."
+                    )
+                seen.add(current.pk)
+                if not current.manager_id:
+                    break
+                try:
+                    current = Employee.objects.only("manager_id").get(pk=current.manager_id)
+                except Employee.DoesNotExist:
+                    break
+        return value
+
     def create(self, validated_data):
         salary_data = validated_data.pop("salary", None)
         employee = Employee.objects.create(**validated_data)
