@@ -224,8 +224,56 @@ class SalaryStructure(models.Model):
         self.net_in_hand = max(net, Decimal("0.00")).quantize(Decimal("0.01"))
 
     def save(self, *args, **kwargs):
+        old = None
+        if self.pk:
+            try:
+                old = SalaryStructure.objects.select_related("employee").get(pk=self.pk)
+            except SalaryStructure.DoesNotExist:
+                old = None
         self.recompute()
         super().save(*args, **kwargs)
+        if old is not None:
+            tracked = [
+                "basic_salary",
+                "house_rent_allowance",
+                "dearness_allowance",
+                "transport_allowance",
+                "telephone_allowance",
+                "special_allowance",
+                "pf_deduction",
+                "professional_tax",
+            ]
+            changed = any(getattr(old, f) != getattr(self, f) for f in tracked)
+            if changed:
+                SalaryHistory.objects.create(
+                    employee=self.employee,
+                    old_basic=old.basic_salary,
+                    new_basic=self.basic_salary,
+                    old_gross=old.gross_salary,
+                    new_gross=self.gross_salary,
+                    old_net=old.net_in_hand,
+                    new_net=self.net_in_hand,
+                )
 
     def __str__(self):
         return f"Salary for {self.employee_id} — Gross {self.gross_salary} Net {self.net_in_hand}"
+
+
+class SalaryHistory(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="salary_history")
+    old_basic = models.DecimalField(max_digits=12, decimal_places=2)
+    new_basic = models.DecimalField(max_digits=12, decimal_places=2)
+    old_gross = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    new_gross = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    old_net = models.DecimalField(max_digits=12, decimal_places=2)
+    new_net = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["employee", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"History {self.employee.employee_id} {self.old_basic}->{self.new_basic} @ {self.created_at:%Y-%m-%d}"
