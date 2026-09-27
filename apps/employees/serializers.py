@@ -176,6 +176,23 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
+    def validate_manager(self, value):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from .validators import validate_manager_assignment
+
+        try:
+            validate_manager_assignment(getattr(self, "instance", None), value)
+        except DjangoValidationError as e:
+            # convert Django dict error to DRF field error
+            msg = (
+                e.message_dict.get("manager", ["Invalid manager."])[0]
+                if hasattr(e, "message_dict")
+                else str(e)
+            )
+            raise serializers.ValidationError(msg)
+        return value
+
     def create(self, validated_data):
         salary_data = validated_data.pop("salary", None)
         employee = Employee.objects.create(**validated_data)

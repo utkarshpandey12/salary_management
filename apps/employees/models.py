@@ -137,6 +137,18 @@ class Employee(models.Model):
             models.CheckConstraint(condition=~Q(email=""), name="employee_email_not_empty"),
         ]
 
+    def clean(self):
+        super().clean()
+        if self.manager_id:
+            # deferred import keeps models lean; logic lives in validators for sonar reuse
+            from .validators import validate_manager_assignment
+
+            try:
+                manager = self.manager
+            except Employee.DoesNotExist:
+                return  # let FK validation handle invalid id
+            validate_manager_assignment(self, manager)
+
     def save(self, *args, **kwargs):
         self.full_name = f"{self.first_name} {self.last_name}".strip()
         super().save(*args, **kwargs)
