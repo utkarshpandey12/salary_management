@@ -1,4 +1,5 @@
 from django import forms
+from django.utils import timezone
 
 from apps.employees.models import Employee
 
@@ -34,6 +35,12 @@ class ReimbursementForm(forms.ModelForm):
             )
             # move employee to first
             self.fields = {"employee": self.fields["employee"], **self.fields}
+
+    def clean_expense_date(self):
+        value = self.cleaned_data.get("expense_date")
+        if value and value > timezone.now().date():
+            raise forms.ValidationError("Expense date cannot be in the future.")
+        return value
 
     def save(self, commit=True, **kwargs):
         obj = super().save(commit=False)

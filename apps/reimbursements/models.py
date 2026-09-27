@@ -1,8 +1,10 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 def reimbursement_upload_to(instance, filename):
@@ -54,6 +56,11 @@ class Reimbursement(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.employee.employee_id} — {self.amount} ({self.status})"
+
+    def clean(self):
+        super().clean()
+        if self.expense_date and self.expense_date > timezone.now().date():
+            raise ValidationError({"expense_date": "Expense date cannot be in the future."})
 
     @property
     def is_pending(self):
