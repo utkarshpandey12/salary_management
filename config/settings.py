@@ -66,7 +66,7 @@ DATABASES = {
     }
 }
 
-# AUTH_USER_MODEL = "accounts.User"  # TDD: added in accounts-model step (custom User)
+AUTH_USER_MODEL = "accounts.User"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
