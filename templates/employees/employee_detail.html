@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.full_name }} — ACME Pay{% endblock %}
+{% block content %}
+<h1>{{ employee.full_name }}</h1>
+<p>{{ employee.employee_id }} {{ employee.status }}</p>
+<p>Manager: {% if employee.manager %}<a href="{% url 'employee-detail' employee.manager.employee_id %}">{{ employee.manager.full_name }}</a>{% else %}—{% endif %}</p>
+{% if can_view_salary and salary %}
+<h2>Salary Structure</h2>
+<p>Basic Salary {{ salary.basic_salary }}</p>
+{% endif %}
+{% endblock %}

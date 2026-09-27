@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ACME Pay{% endblock %}
+{% block content %}
+{% if is_hr %}
+<h1>HR Dashboard</h1>
+<p>Total Employees</p>
+{% else %}
+<h1>My Dashboard</h1>
+{% if my_employee %}
+<p>{{ my_employee.full_name }}</p>
+{% else %}
+<p>No employee profile linked to this account.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

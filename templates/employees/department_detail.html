@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ department.name }} — ACME Pay{% endblock %}
+{% block content %}
+<h1>{{ department.name }}</h1>
+{% if is_hr %}
+<p>Avg net {{ stats.avg }}</p>
+<p>Median {{ median }}</p>
+<table>
+    <thead><tr><th>Employee</th><th>Net</th></tr></thead>
+    <tbody>
+        {% for e in employees %}
+        <tr><td>{{ e.full_name }}</td><td>{{ e.salary.net_in_hand }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Members {{ stats.count }}</p>
+<p>Salary details are confidential</p>
+<table>
+    <tbody>
+        {% for e in employees %}
+        <tr><td>{{ e.full_name }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}
