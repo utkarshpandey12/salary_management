@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Payroll Exports{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-slate-900 mb-6"><i class="fa-solid fa-clock-rotate-left mr-2"></i> Payroll Exports</h1>
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase"><tr><th class="text-left px-4 py-3">ID</th><th class="text-left px-4 py-3">Month</th><th class="text-left px-4 py-3">Format</th><th class="text-left px-4 py-3">Status</th><th class="text-left px-4 py-3">Created</th><th class="text-right px-4 py-3"></th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for e in exports %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3">#{{ e.id }}</td>
+                <td class="px-4 py-3">{{ e.month|date:"Y-m" }}</td>
+                <td class="px-4 py-3">{{ e.format }}</td>
+                <td class="px-4 py-3"><span class="text-xs px-2.5 py-1 rounded-full border {% if e.status == 'COMPLETED' %}bg-green-50 text-green-700 border-green-200{% elif e.status == 'FAILED' %}bg-red-50 text-red-700 border-red-200{% else %}bg-amber-50 text-amber-700 border-amber-200{% endif %}">{{ e.get_status_display }}</span></td>
+                <td class="px-4 py-3 text-xs">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="px-4 py-3 text-right">{% if e.status == 'COMPLETED' and e.file %}<a href="{% url 'payroll-export-download' e.pk %}" class="text-xs bg-indigo-600 text-white rounded-lg px-3 py-1.5">Download</a>{% else %}<a href="{% url 'payroll-export-status' e.pk %}" class="text-xs bg-white border rounded-lg px-3 py-1.5">Status</a>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="px-4 py-12 text-center text-slate-500">No exports yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
