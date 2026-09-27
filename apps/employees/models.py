@@ -233,27 +233,11 @@ class SalaryStructure(models.Model):
         self.recompute()
         super().save(*args, **kwargs)
         if old is not None:
-            tracked = [
-                "basic_salary",
-                "house_rent_allowance",
-                "dearness_allowance",
-                "transport_allowance",
-                "telephone_allowance",
-                "special_allowance",
-                "pf_deduction",
-                "professional_tax",
-            ]
-            changed = any(getattr(old, f) != getattr(self, f) for f in tracked)
-            if changed:
-                SalaryHistory.objects.create(
-                    employee=self.employee,
-                    old_basic=old.basic_salary,
-                    new_basic=self.basic_salary,
-                    old_gross=old.gross_salary,
-                    new_gross=self.gross_salary,
-                    old_net=old.net_in_hand,
-                    new_net=self.net_in_hand,
-                )
+            # deferred import keeps models lean; logic lives in services for sonar-clean reuse
+            from .services import log_salary_change, salary_changed
+
+            if salary_changed(old, self):
+                log_salary_change(old, self)
 
     def __str__(self):
         return f"Salary for {self.employee_id} — Gross {self.gross_salary} Net {self.net_in_hand}"
