@@ -1,9 +1,9 @@
 from django import forms
-from django.utils import timezone
 
 from apps.employees.models import Employee
 
 from .models import Reimbursement
+from .validators import validate_not_future
 
 
 class ReimbursementForm(forms.ModelForm):
@@ -38,7 +38,9 @@ class ReimbursementForm(forms.ModelForm):
 
     def clean_expense_date(self):
         value = self.cleaned_data.get("expense_date")
-        if value and value > timezone.now().date():
+        try:
+            validate_not_future(value, field_name="")
+        except Exception:
             raise forms.ValidationError("Expense date cannot be in the future.")
         return value
 
