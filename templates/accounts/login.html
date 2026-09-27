@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Login — ACME Pay{% endblock %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
+            <div class="text-center mb-8">
+                <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-solid fa-building-columns text-white"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-900">Welcome back</h1>
+                <p class="text-sm text-slate-500 mt-1">Sign in to ACME Pay HR Suite</p>
+            </div>
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg p-3">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                    <input type="text" name="username" value="{{ form.username.value|default:'' }}" required class="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="hr_admin or employee_demo">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <input type="password" name="password" required class="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg px-4 py-2.5 transition">Sign in <i class="fa-solid fa-arrow-right ml-2"></i></button>
+            </form>
+            <div class="mt-6 bg-slate-50 rounded-xl p-4 text-xs">
+                <div class="font-semibold text-slate-700 mb-2">Demo accounts (seed required)</div>
+                <div class="space-y-1 font-mono">
+                    <div class="flex justify-between"><span class="text-slate-600">HR Manager</span><span class="font-medium">hr_admin / hr12345</span></div>
+                    <div class="flex justify-between"><span class="text-slate-600">Employee</span><span class="font-medium">employee_demo / emp12345</span></div>
+                </div>
+                <div class="mt-3 text-slate-500">Both accounts work via session login and API token.</div>
+            </div>
+        </div>
+        <div class="mt-4 text-center text-xs text-slate-500">
+            10,000 seeded employees • Countries: USA, India, Germany, etc.
+        </div>
+    </div>
+</div>
+{% endblock %}
